@@ -1,0 +1,349 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 15px;
+  --background: #FAF9F7;
+  --foreground: #1C1917;
+  --card: #ffffff;
+  --card-foreground: #1C1917;
+  --popover: #ffffff;
+  --popover-foreground: #1C1917;
+  /* Role accent — brand identity, kept strictly separate from the
+     safe/watch/critical status system below (status colors never read this
+     token, on either account type). Blood Bank keeps the site's original
+     oxblood; Hospital gets a deep, muted navy instead — see
+     [data-role="hospital"] below, set on <html> by App.tsx once the
+     logged-in account's facility_type is known. Defaults here (Blood Bank's
+     oxblood) also cover the logged-out login screen and admin, since
+     neither role applies to them. --role-accent-rgb is the same color as an
+     "r, g, b" triplet, only so --shadow-button* can tint itself with
+     rgba() — CSS custom properties can't be decomposed at use-time. */
+  --role-accent: #8C1B3A;
+  --role-accent-hover: #A8264C;
+  --role-accent-tint: #FBEAEE;
+  --role-accent-rgb: 140, 27, 58;
+
+  --primary: var(--role-accent);
+  --primary-hover: var(--role-accent-hover);
+  --primary-tint: var(--role-accent-tint);
+  --primary-foreground: #ffffff;
+  --secondary: #F0EEEB;
+  --secondary-foreground: #443E39;
+  --muted: #F0EEEB;
+  --muted-foreground: #58514B;
+  --accent: var(--role-accent-tint);
+  --accent-foreground: var(--role-accent);
+  --destructive: #DC2626;
+  --destructive-foreground: #ffffff;
+  /* Deliberately more visible than a typical "hairline" gray — cards, table
+     rows, and inputs need to read as structure at a glance, not just on
+     close inspection. */
+  --border: #D3CBC1;
+  --input: transparent;
+  --input-background: #FAF8F6;
+  --switch-background: #D1D5DB;
+
+  /* Warm-neutral (stone) scale — replaces Tailwind's default cool gray for
+     every bg-gray, text-gray, and border-gray utility in the app (see the
+     --color-gray overrides below). A cool gray next to an oxblood primary
+     and a warm-gold watch state read as mismatched palettes fighting each
+     other; this makes every neutral in the app read as one deliberate,
+     warm-leaning system instead of "brand colors + default Tailwind gray." */
+  --gray-50: #FAFAF9;
+  --gray-100: #F5F4F2;
+  --gray-200: #E7E4E1;
+  --gray-300: #D6D2CD;
+  --gray-400: #A9A29A;
+  --gray-500: #79726B;
+  --gray-600: #58514B;
+  --gray-700: #443E39;
+  --gray-800: #2B2724;
+  --gray-900: #1C1917;
+  --font-weight-medium: 600;
+  --font-weight-normal: 500;
+  --ring: var(--role-accent);
+  --chart-1: #8C1B3A;
+  --chart-2: #16A34A;
+  --chart-3: #D97706;
+  --chart-4: #2563EB;
+  --chart-5: #7C3AED;
+  --radius: 0.5rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #111827;
+  --sidebar-primary: #8C1B3A;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #FBEAEE;
+  --sidebar-accent-foreground: #8C1B3A;
+  --sidebar-border: #C9D0DA;
+  --sidebar-ring: #8C1B3A;
+
+  /* 3-state status language — one definition per state, reused everywhere
+     status appears (expiry, threshold, availability, forecast alerts,
+     facility/account status) — and, critically, identical on every account
+     type. --role-accent varies by role; --status-* never does, and never
+     reads --role-accent, so a Hospital and a Blood Bank account looking at
+     the same shortage always see the same red. Safe is teal rather than
+     green, and watch is a gold rather than an orange-leaning amber,
+     specifically so the safe/watch/critical triad no longer relies on a
+     red-green distinction — red-green colorblindness (~8% of men) is the
+     single most common form, and status is the most important signal in
+     this app. Hue AND lightness are kept clearly separated across all three
+     (critical's hue ~12°, watch's ~43°, safe's ~175°). Critical was nudged
+     from its original ~5° to ~12° — further from Blood Bank's oxblood
+     accent (~344°, only ~21° away at 5°, ~27° away at 12°) so a solid
+     oxblood button sitting next to a critical badge reads as two distinct
+     colors, not one red blob, on the one account type that still shares
+     red's general family with a status color. */
+  --status-safe: #0F766E;
+  --status-safe-text: #115E59;
+  --status-safe-tint: #E6F5F3;
+  --status-safe-border: #BFE1DC;
+  --status-watch: #B8860B;
+  --status-watch-text: #7C5C08;
+  --status-watch-tint: #FAF1DA;
+  --status-watch-border: #E4D19E;
+  --status-critical: #BD4024;
+  --status-critical-text: #96331D;
+  --status-critical-tint: #FCEEE7;
+  --status-critical-border: #F0CBB8;
+
+  /* Secondary accent — "informational, not a status" (blood-type
+     compatibility suggestions, reason-for-request tags, simulation
+     notices). Kept fully separate from --secondary (a neutral background
+     token) and from the safe/watch/critical triad, since blue never means
+     "OK/caution/urgent" here — it means "here's a related option." */
+  --info: #1D4ED8;
+  --info-text: #1E40AF;
+  --info-tint: #E9F1FB;
+  --info-border: #C3D5F2;
+
+  /* Elevation — kept deliberately soft (low opacity, tight blur) so it reads
+     as a slight lift off the page rather than a drawn-on drop shadow. Button
+     shadows are tinted with --role-accent (via --role-accent-rgb) instead of
+     flat black, so they reinforce whichever brand color is active — oxblood
+     or navy — rather than looking like a generic UI-kit default, or a navy
+     button glowing pink. Card shadows stay neutral since they sit behind
+     many colors regardless of role. */
+  --shadow-card: 0 1px 2px rgba(28, 25, 23, 0.04), 0 2px 6px rgba(28, 25, 23, 0.035);
+  --shadow-button: 0 1px 2px rgba(28, 25, 23, 0.06), 0 2px 6px -1px rgba(var(--role-accent-rgb), 0.25);
+  --shadow-button-hover: 0 2px 4px rgba(28, 25, 23, 0.07), 0 4px 12px -2px rgba(var(--role-accent-rgb), 0.32);
+  --shadow-button-active: 0 1px 1px rgba(28, 25, 23, 0.06), 0 1px 3px rgba(var(--role-accent-rgb), 0.22);
+
+  --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-display: 'Archivo', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+/* Hospital role override — everything else (Blood Bank, Admin, logged-out)
+   uses the oxblood defaults declared in :root above. Same specificity as
+   :root (both target <html>), so source order after :root is what makes
+   this win when the attribute is present — see the data-role effect in
+   App.tsx's App() component. */
+[data-role="hospital"] {
+  --role-accent: #1E3A5F;
+  --role-accent-hover: #2C4F7C;
+  --role-accent-tint: #E7ECF1;
+  --role-accent-rgb: 30, 58, 95;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.145 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  --ring: oklch(0.439 0 0);
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.269 0 0);
+  --sidebar-ring: oklch(0.439 0 0);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-tint: var(--primary-tint);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-status-safe: var(--status-safe);
+  --color-status-safe-text: var(--status-safe-text);
+  --color-status-safe-tint: var(--status-safe-tint);
+  --color-status-safe-border: var(--status-safe-border);
+  --color-status-watch: var(--status-watch);
+  --color-status-watch-text: var(--status-watch-text);
+  --color-status-watch-tint: var(--status-watch-tint);
+  --color-status-watch-border: var(--status-watch-border);
+  --color-status-critical: var(--status-critical);
+  --color-status-critical-text: var(--status-critical-text);
+  --color-status-critical-tint: var(--status-critical-tint);
+  --color-status-critical-border: var(--status-critical-border);
+  --color-info: var(--info);
+  --color-info-text: var(--info-text);
+  --color-info-tint: var(--info-tint);
+  --color-info-border: var(--info-border);
+  --color-gray-50: var(--gray-50);
+  --color-gray-100: var(--gray-100);
+  --color-gray-200: var(--gray-200);
+  --color-gray-300: var(--gray-300);
+  --color-gray-400: var(--gray-400);
+  --color-gray-500: var(--gray-500);
+  --color-gray-600: var(--gray-600);
+  --color-gray-700: var(--gray-700);
+  --color-gray-800: var(--gray-800);
+  --color-gray-900: var(--gray-900);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    /* Baseline body weight bumped from regular to medium for legibility —
+       anything already using font-semibold/font-bold (most headers, all
+       buttons) stays clearly distinct above this. */
+    font-weight: 500;
+  }
+
+  /**
+  * Default typography styles for HTML elements (h1-h4, p, label, button, input).
+  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
+  */
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  h1 {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h2 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h3 {
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h4 {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  label {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  button {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  input {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+
+  /* Solid primary buttons — and selected-state pickers that reuse the same
+     bg-primary text-white pair — get a soft oxblood-tinted lift instead of
+     sitting flush with the page. Scoped to real <button> elements only, so
+     the notification-count badge and the sidebar panel (which share the
+     same two classes but aren't buttons) are unaffected. Restrained on
+     purpose: tight blur, low opacity, no spread. */
+  button.bg-primary.text-white {
+    box-shadow: var(--shadow-button);
+    transition: box-shadow 150ms ease-out;
+  }
+  button.bg-primary.text-white:hover:not(:disabled) {
+    box-shadow: var(--shadow-button-hover);
+  }
+  button.bg-primary.text-white:active:not(:disabled) {
+    box-shadow: var(--shadow-button-active);
+  }
+  button.bg-primary.text-white:disabled {
+    box-shadow: none;
+  }
+
+  /* Top-level white content cards get the same soft lift, neutral rather
+     than oxblood-tinted since they sit behind every status and brand color
+     in the app. Modals/dropdowns already carry their own shadow-lg/xl
+     utility and take precedence over this (Tailwind's utility layer loads
+     after this one). */
+  .bg-white.border.border-border.rounded-xl {
+    box-shadow: var(--shadow-card);
+  }
+}
