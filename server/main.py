@@ -57,7 +57,27 @@ ALLOW_DEV_TEST_TOOLS = os.environ.get("ALLOW_DEV_TEST_TOOLS", "false").strip().l
 # when allow_credentials=True, which this app never sets. "*" is a reasonable
 # temporary default before the real frontend URL is known, not a permanent
 # choice: set this env var once it is, so it stops being wide open.
-CORS_ALLOWED_ORIGINS = [o.strip() for o in os.environ.get("CORS_ALLOWED_ORIGINS", "*").split(",")]
+#
+# CORSMiddleware matches allow_origins entries against the browser's Origin
+# header with an EXACT string comparison — no normalization of its own. An
+# Origin header is always just scheme://host[:port], never a trailing slash,
+# so a value pasted into a host's env var UI with one (a very easy mistake —
+# most browser address bars show one) silently never matches anything, with
+# no error, just a missing Access-Control-Allow-Origin header on every
+# response. Same failure mode for accidentally-included quote characters
+# (pasting from a source that quoted the value) or mismatched case in the
+# scheme. Normalizing all three here, per origin, means a config typo of
+# exactly this shape degrades to "still works" instead of "fails silently
+# with no indication why."
+def _normalize_origin(raw: str) -> str:
+    origin = raw.strip().strip("'\"").rstrip("/")
+    if origin != "*" and "://" in origin:
+        scheme, rest = origin.split("://", 1)
+        origin = f"{scheme.lower()}://{rest}"
+    return origin
+
+
+CORS_ALLOWED_ORIGINS = [_normalize_origin(o) for o in os.environ.get("CORS_ALLOWED_ORIGINS", "*").split(",")]
 
 VALID_FACILITY_TYPES = {"hospital", "bloodbank"}
 
@@ -684,7 +704,14 @@ def health():
             conn.execute(text("SELECT 1"))
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"database unavailable: {exc}")
-    return {"status": "ok", "database": "connected"}
+    # cors_allowed_origins deliberately included: the list of allowed origins
+    # isn't sensitive (any real cross-origin request already reveals whether
+    # its own origin is on it), and this is the one live, no-dashboard-needed
+    # way to confirm exactly what CORS_ALLOWED_ORIGINS actually parsed to on
+    # whatever's currently running — the normal question when a CORS error
+    # shows up is "is the env var wrong, or did the redeploy not pick it up
+    # yet," and this answers both without needing host log/dashboard access.
+    return {"status": "ok", "database": "connected", "cors_allowed_origins": CORS_ALLOWED_ORIGINS}
 
 
 @app.get("/notifications")
