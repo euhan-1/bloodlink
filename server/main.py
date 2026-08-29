@@ -2672,6 +2672,20 @@ def _parse_donor_csv(csv_text: str) -> tuple[list[dict], list[dict]]:
     return valid_rows, errors
 
 
+def _require_bloodbank_facility(conn, facility_id: int) -> None:
+    """Donor outreach (roster upload, blasts, replies) is blood-bank-only —
+    same split as GET /forecast and historical-upload, just applied to this
+    domain: hospitals get threshold_status, never forecast; hospitals see no
+    Donors tab either, and this is what makes that a real restriction rather
+    than a UI choice. facility_type is re-checked fresh from the DB on every
+    call, never trusted from the client, matching that same pattern exactly."""
+    facility_type = conn.execute(
+        text("SELECT facility_type FROM facilities WHERE id = :id"), {"id": facility_id}
+    ).scalar()
+    if facility_type != "bloodbank":
+        raise HTTPException(status_code=403, detail="donor outreach is only available to blood bank facilities")
+
+
 @app.post("/donors/upload")
 async def upload_donors(
     file: UploadFile = File(...),
@@ -2688,6 +2702,9 @@ async def upload_donors(
     raw_content left NULL — donor CSVs carry personal information, and the
     donors table is already the one copy of that we want sitting around.
     """
+    with engine.connect() as conn:
+        _require_bloodbank_facility(conn, facility_id)
+
     if not (file.filename or "").lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="only .csv files are accepted")
 
@@ -2723,6 +2740,7 @@ async def upload_donors(
 @app.get("/donors")
 def list_donors(facility_id: int = Depends(get_acting_facility_id)):
     with engine.connect() as conn:
+        _require_bloodbank_facility(conn, facility_id)
         rows = conn.execute(
             text(
                 """
@@ -2789,6 +2807,8 @@ def create_blast(body: CreateBlastBody, facility_id: int = Depends(get_acting_fa
     simulates), and logs each simulated message. Zero matching donors is a
     valid, honestly-reported outcome, not an error."""
     with engine.begin() as conn:
+        _require_bloodbank_facility(conn, facility_id)
+
         facility = conn.execute(
             text("SELECT name FROM facilities WHERE id = :id"), {"id": facility_id}
         ).mappings().first()
@@ -2857,6 +2877,7 @@ def create_blast(body: CreateBlastBody, facility_id: int = Depends(get_acting_fa
 @app.get("/donors/blasts")
 def list_blasts(facility_id: int = Depends(get_acting_facility_id)):
     with engine.connect() as conn:
+        _require_bloodbank_facility(conn, facility_id)
         rows = conn.execute(
             text(
                 """
@@ -2873,6 +2894,8 @@ def list_blasts(facility_id: int = Depends(get_acting_facility_id)):
 @app.get("/donors/blasts/{blast_id}/messages")
 def list_blast_messages(blast_id: int, facility_id: int = Depends(get_acting_facility_id)):
     with engine.begin() as conn:
+        _require_bloodbank_facility(conn, facility_id)
+
         blast = conn.execute(
             text("SELECT id FROM blasts WHERE id = :id AND facility_id = :facility_id"),
             {"id": blast_id, "facility_id": facility_id},
@@ -3020,6 +3043,8 @@ def simulate_reply(
         raise HTTPException(status_code=403, detail="dev test tools are disabled on this server")
 
     with engine.begin() as conn:
+        _require_bloodbank_facility(conn, facility_id)
+
         blast = conn.execute(
             text("SELECT * FROM blasts WHERE id = :id AND facility_id = :facility_id"),
             {"id": blast_id, "facility_id": facility_id},
@@ -3069,6 +3094,8 @@ def dev_force_expire_blast(blast_id: int, facility_id: int = Depends(get_acting_
         raise HTTPException(status_code=403, detail="dev test tools are disabled on this server")
 
     with engine.begin() as conn:
+        _require_bloodbank_facility(conn, facility_id)
+
         blast = conn.execute(
             text("SELECT * FROM blasts WHERE id = :id AND facility_id = :facility_id"),
             {"id": blast_id, "facility_id": facility_id},
@@ -3093,6 +3120,8 @@ def get_confirmed_donors(blast_id: int, facility_id: int = Depends(get_acting_fa
     confirmed donors than the blast was ever allowed to accept.
     """
     with engine.begin() as conn:
+        _require_bloodbank_facility(conn, facility_id)
+
         blast = conn.execute(
             text("SELECT * FROM blasts WHERE id = :id AND facility_id = :facility_id"),
             {"id": blast_id, "facility_id": facility_id},

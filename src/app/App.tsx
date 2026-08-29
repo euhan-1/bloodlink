@@ -554,11 +554,14 @@ function TopNav({
   user: SessionUser;
   onNotificationNavigate: (n: NotificationItem) => void;
 }) {
+  // Donors is blood-bank-only, the same split already applied to Forecasting
+  // (GET /forecast) vs. threshold status — a hospital account gets no tab
+  // for it at all, matching the server-side rejection in _require_bloodbank_facility.
   const navItems: { key: Screen; label: string; icon: React.ReactNode }[] = [
     { key: "dashboard", label: "Dashboard", icon: <Activity size={17} /> },
     { key: "inventory", label: "Inventory", icon: <Package size={17} /> },
     { key: "requests", label: "Requests", icon: <MapPin size={17} /> },
-    { key: "chat", label: "Donors", icon: <Phone size={17} /> },
+    ...(user.facility_type !== "hospital" ? [{ key: "chat" as const, label: "Donors", icon: <Phone size={17} /> }] : []),
   ];
 
   return (
