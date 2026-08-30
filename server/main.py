@@ -1830,6 +1830,17 @@ def create_request(body: CreateRequestBody, requesting_facility_id: int = Depend
     facility — never taken from the request body, same pattern as every other
     "who is 'us'" lookup in this app."""
     with engine.begin() as conn:
+        # Blood banks have no patients, so trauma/scheduled_surgery (which
+        # grant non-preemptive priority ahead of restock — see
+        # IMMEDIATE_USE_TYPES/_priority_rank below) can never legitimately
+        # apply to a blood-bank-originated request. Re-checked fresh from the
+        # DB, never trusted from the client, same pattern as
+        # _require_bloodbank_facility.
+        requesting_facility_type = conn.execute(
+            text("SELECT facility_type FROM facilities WHERE id = :id"), {"id": requesting_facility_id}
+        ).scalar()
+        emergency_type = "restock" if requesting_facility_type == "bloodbank" else body.emergency_type
+
         row = conn.execute(
             text(
                 """
@@ -1846,7 +1857,7 @@ def create_request(body: CreateRequestBody, requesting_facility_id: int = Depend
                 "supplying_facility_id": body.supplying_facility_id,
                 "blood_type": body.blood_type,
                 "quantity": body.quantity,
-                "emergency_type": body.emergency_type,
+                "emergency_type": emergency_type,
             },
         ).mappings().first()
 

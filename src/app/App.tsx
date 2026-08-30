@@ -28,14 +28,14 @@ import {
   listNotifications, markNotificationRead, markAllNotificationsRead, type NotificationItem,
   notifyNearbyHospitals, type NotifyNearbyHospitalsResult,
   listUploadHistory, downloadUploadHistoryFile, type UploadType, type UploadHistoryEntry,
-  previewUploadUndo, applyUploadUndo, type UndoPreviewResult, type UndoRow, type UndoBlockedRow, type UndoApplyResult,
+  previewUploadUndo, applyUploadUndo, type UndoPreviewResult, type UndoRow, type UndoApplyResult,
 } from "./lib/api";
 import { getCurrentUser, type SessionUser } from "./lib/session";
 import { isDevModeEnabled, getDevFacilityId, setDevFacilityId } from "./lib/devMode";
 import {
-  Droplet, AlertTriangle, CheckCircle, Clock, MapPin, Send,
+  AlertTriangle, CheckCircle, Clock, MapPin, Send,
   Plus, Upload, Phone, Search, Bell, User, LogOut,
-  Activity, Package, ArrowRight, Filter, ChevronDown,
+  Activity, Package, ArrowRight, ChevronDown,
   MessageSquare, RefreshCw, ShieldCheck, Zap, FlaskConical, Building2, TrendingUp,
   KeyRound, X, Download, History, RotateCcw,
 } from "lucide-react";
@@ -63,14 +63,24 @@ const BLOOD_TYPE_ORDER = ["A-", "A+", "AB-", "AB+", "B-", "B+", "O-", "O+"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// Mirrors the backend's NOTIFY_EXPIRY_CRITICAL_DAYS / NOTIFY_EXPIRY_NEAR_DAYS
+// (server/main.py) — can't literally share a constant across languages, but
+// the two values must stay in sync: this is what decides "critical"/"near
+// expiry" here, and the backend uses the same cutoffs to decide when an
+// expiry notification actually fires. Named here (not inlined) so the two
+// places in this file that care about "is this expiring soon" both go
+// through one definition instead of each hardcoding 3/7 independently.
+const EXPIRY_CRITICAL_DAYS = 3;
+const EXPIRY_NEAR_DAYS = 7;
+
 // Single source of truth for expiry status, shared by Inventory and Dashboard
 // so the two screens can't quietly drift onto different day cutoffs.
 type ExpiryStatus = "expired" | "critical" | "near-expiry" | "ok";
 
 function getExpiryStatus(daysLeft: number): ExpiryStatus {
   if (daysLeft < 0) return "expired";
-  if (daysLeft <= 3) return "critical";
-  if (daysLeft <= 7) return "near-expiry";
+  if (daysLeft <= EXPIRY_CRITICAL_DAYS) return "critical";
+  if (daysLeft <= EXPIRY_NEAR_DAYS) return "near-expiry";
   return "ok";
 }
 
@@ -192,31 +202,11 @@ function BloodTypeBadge({ type, size = "md", selected = false, className = "" }:
   );
 }
 
-// Decorative-only bar pattern evoking a blood bag's printed barcode — never
-// claims to be a real, scannable barcode (aria-hidden, purely visual weight
-// ahead of the DIN text).
-function BarcodeGlyph() {
-  const widths = [1.5, 1, 2, 1, 1.5, 1, 1, 2];
-  return (
-    <svg width="18" height="12" viewBox="0 0 18 12" aria-hidden="true" className="shrink-0 opacity-70">
-      {widths.reduce<{ x: number; els: React.ReactNode[] }>(
-        (acc, w, i) => {
-          acc.els.push(<rect key={i} x={acc.x} y="0" width={w} height="12" fill="currentColor" />);
-          return { x: acc.x + w + 1, els: acc.els };
-        },
-        { x: 0, els: [] }
-      ).els}
-    </svg>
-  );
-}
-
-// Inventory's DIN cell, styled to read as the barcode line on a real unit
-// label — wide-tracked mono text with the decorative barcode glyph ahead of
-// it. Used only where a DIN is shown at label weight (Inventory rows).
+// Inventory's DIN cell — wide-tracked mono text. Used only where a DIN is
+// shown at label weight (Inventory rows).
 function DinLabel({ din }: { din: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 font-mono text-[12px] tracking-wider uppercase text-foreground">
-      <BarcodeGlyph />
+    <span className="inline-flex items-center font-mono text-[12px] tracking-wider uppercase text-foreground">
       {din}
     </span>
   );
@@ -1536,6 +1526,7 @@ function formatRelativeTime(iso: string): string {
 }
 
 const NOTIFICATION_POLL_MS = 20000;
+const CHAT_MESSAGE_POLL_MS = 4000;
 
 // Bell trigger + dropdown for facility accounts (TopNav only — admins have no
 // facility_id, so notifications, which are facility-scoped, never apply to
@@ -2050,7 +2041,7 @@ function ExpiryWarningRow({ row }: { row: InventoryUnit }) {
       </div>
       <div className="mt-2 pt-2 border-t border-black/5">
         {notifyState === "sent" ? (
-          <span className="flex items-center gap-1 text-[12px] font-semibold text-green-700">
+          <span className="flex items-center gap-1 text-[12px] font-semibold text-status-safe-text">
             <CheckCircle size={13} />
             {notifyResult && notifyResult.notified_count > 0
               ? `${notifyResult.notified_count} nearby hospital${notifyResult.notified_count === 1 ? "" : "s"} alerted`
@@ -2225,8 +2216,10 @@ function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (bloodTyp
   }, [dashboardData?.view]);
 
   const totalUnits = summary.reduce((a, b) => a + b.units, 0);
-  const isHospitalView = dashboardData?.view === "threshold_status";
-  const expiringRows = expiryUnits.filter((r) => r.daysLeft <= 7);
+  const expiringRows = expiryUnits.filter((r) => {
+    const status = getExpiryStatus(r.daysLeft);
+    return status === "critical" || status === "near-expiry";
+  });
 
   // One overall read on "are we okay," not four competing numbers — worst
   // condition present wins: any type below minimum outranks anything running
@@ -2406,7 +2399,7 @@ function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (bloodTyp
                   </span>
                 )}
                 {dashboardData.forecast_source === "real_facility_history" && dashboardData.alerts.length > 0 && (
-                  <span className="flex items-center gap-1 text-[12px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                  <span className="flex items-center gap-1 text-[12px] font-bold text-status-watch-text bg-status-watch-tint px-2 py-0.5 rounded-full border border-status-watch-border">
                     <AlertTriangle size={13} /> At Risk
                   </span>
                 )}
@@ -2561,7 +2554,7 @@ function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (bloodTyp
                       />
                       <Bar
                         dataKey="units"
-                        fill={dashboardData.forecast_source === "synthetic_model_stand_in" ? "#7C3AED" : "#C41230"}
+                        fill={dashboardData.forecast_source === "synthetic_model_stand_in" ? "#7C3AED" : "var(--role-accent)"}
                         opacity={0.85}
                         radius={[3, 3, 0, 0]}
                         name="Units"
@@ -3144,11 +3137,11 @@ function IncomingRequestCard({
       )}
 
       {req.status === "accepted" && req.supplier_confirmed_at && !req.requester_confirmed_at && (
-        <span className="text-[11px] font-semibold text-amber-700">Released — awaiting requester confirmation</span>
+        <span className="text-[11px] font-semibold text-status-watch-text">Released — awaiting requester confirmation</span>
       )}
 
       {req.status === "completed" && (
-        <span className="flex items-center gap-1 text-[11px] font-semibold text-green-700">
+        <span className="flex items-center gap-1 text-[11px] font-semibold text-status-safe-text">
           <CheckCircle size={12} /> Completed
         </span>
       )}
@@ -3176,7 +3169,13 @@ function RequestsScreen({
   const [tab, setTab] = useState<RequestTab>(initialHighlightRequestId ? "transfer" : "sourcing");
   const [searchType, setSearchType] = useState(initialSearchType ?? "O-");
   const [quantityNeeded, setQuantityNeeded] = useState(3);
-  const [emergencyType, setEmergencyType] = useState<EmergencyType>("trauma");
+  // Blood banks have no patients, so trauma/scheduled_surgery (which grant
+  // non-preemptive priority ahead of restock — see IMMEDIATE_USE_TYPES in
+  // main.py) can never legitimately apply to a blood-bank-originated
+  // request. The server enforces this regardless of what's sent here; this
+  // just keeps the UI honest about the only value that will actually land.
+  const isBloodBankRequester = getCurrentUser()?.facility_type === "bloodbank";
+  const [emergencyType, setEmergencyType] = useState<EmergencyType>(isBloodBankRequester ? "restock" : "trauma");
   const [selectedBank, setSelectedBank] = useState<number | null>(null);
   const [chatInput, setChatInput] = useState("");
   const [selectedRequestId, setSelectedRequestId] = useState<number | null>(initialHighlightRequestId ?? null);
@@ -3354,7 +3353,7 @@ function RequestsScreen({
     }
     setMessagesLoading(true);
     fetchMessages();
-    const interval = setInterval(fetchMessages, 4000);
+    const interval = setInterval(fetchMessages, CHAT_MESSAGE_POLL_MS);
     return () => { cancelled = true; clearInterval(interval); };
   }, [selectedRequestId]);
 
@@ -3473,9 +3472,6 @@ function RequestsScreen({
                   </button>
                 </div>
               </div>
-              <button className="w-full h-10 bg-primary text-white text-[13px] font-semibold rounded-lg hover:bg-primary-hover transition-colors flex items-center justify-center gap-2">
-                <Search size={15} /> Search Network
-              </button>
             </div>
 
             {/* Blood type compatibility notice */}
@@ -3686,21 +3682,27 @@ function RequestsScreen({
                           <label className="text-[12px] font-semibold text-muted-foreground block mb-1.5">
                             Reason for request
                           </label>
-                          <div className="grid grid-cols-3 gap-1.5">
-                            {(Object.keys(EMERGENCY_TYPE_LABELS) as EmergencyType[]).map((et) => (
-                              <button
-                                key={et}
-                                onClick={() => setEmergencyType(et)}
-                                className={`py-2 text-[12px] font-bold rounded-lg border transition-colors ${
-                                  emergencyType === et
-                                    ? "bg-primary text-white border-primary"
-                                    : "bg-white text-foreground border-border hover:border-primary/40"
-                                }`}
-                              >
-                                {EMERGENCY_TYPE_LABELS[et]}
-                              </button>
-                            ))}
-                          </div>
+                          {isBloodBankRequester ? (
+                            <div className="py-2 px-3 text-[12px] font-bold rounded-lg border border-border bg-secondary text-foreground w-fit">
+                              Restock
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {(Object.keys(EMERGENCY_TYPE_LABELS) as EmergencyType[]).map((et) => (
+                                <button
+                                  key={et}
+                                  onClick={() => setEmergencyType(et)}
+                                  className={`py-2 text-[12px] font-bold rounded-lg border transition-colors ${
+                                    emergencyType === et
+                                      ? "bg-primary text-white border-primary"
+                                      : "bg-white text-foreground border-border hover:border-primary/40"
+                                  }`}
+                                >
+                                  {EMERGENCY_TYPE_LABELS[et]}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         {submitError && (
@@ -3839,7 +3841,7 @@ function RequestsScreen({
                           </button>
 
                           {req.status === "completed" ? (
-                            <span className="flex items-center gap-1 text-[11px] font-semibold text-green-700">
+                            <span className="flex items-center gap-1 text-[11px] font-semibold text-status-safe-text">
                               <CheckCircle size={12} /> Completed
                             </span>
                           ) : !req.supplier_confirmed_at ? (
@@ -4060,7 +4062,7 @@ function RequestsScreen({
                           </td>
                           <td className="py-3 px-4 font-mono text-[12px] text-muted-foreground">{submittedTime}</td>
                           <td className="py-3 px-4">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-status-watch-tint text-status-watch-text border border-status-watch-border">
                               <Clock size={11} /> Awaiting response
                             </span>
                           </td>
@@ -4602,7 +4604,7 @@ function ChatScreen() {
                       <CheckCircle size={13} /> Drive Complete
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-[12px] font-semibold bg-amber-100 text-amber-700 px-3 py-1 rounded-full border border-amber-200">
+                    <span className="flex items-center gap-1 text-[12px] font-semibold bg-status-watch-tint text-status-watch-text px-3 py-1 rounded-full border border-status-watch-border">
                       <Clock size={13} /> Active
                     </span>
                   )}
@@ -4611,11 +4613,11 @@ function ChatScreen() {
                 <div className="px-5 py-3 border-b border-border">
                   <div className="flex justify-between text-[11px] font-semibold mb-1.5">
                     <span className="text-muted-foreground">Confirmation progress</span>
-                    <span className="text-green-700">{confirmedCount} of {target} needed</span>
+                    <span className="text-status-safe-text">{confirmedCount} of {target} needed</span>
                   </div>
                   <div className="h-2 bg-secondary rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-green-500 rounded-full transition-all"
+                      className="h-full bg-status-safe rounded-full transition-all"
                       style={{ width: `${Math.min(100, (confirmedCount / target) * 100)}%` }}
                     />
                   </div>
