@@ -1,19 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
-
-// Vite doesn't serve Leaflet's default marker images from the path its CSS
-// expects — without this the pin silently renders as a broken image.
-delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
+import "./lib/leafletSetup";
 import {
   apiGet,
   login as apiLogin, logout as apiLogout,
@@ -26,8 +12,8 @@ import {
 import { getCurrentUser, type SessionUser } from "./lib/session";
 import { isDevModeEnabled, getDevFacilityId, setDevFacilityId } from "./lib/devMode";
 import { STATUS_STYLES } from "./lib/statusTokens";
-import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM, PIN_PLACED_ZOOM } from "./lib/mapConstants";
 import { BloodDropLogo } from "./components/BloodTypeBadge";
+import { FacilityLocationFields } from "./components/FacilityLocationPicker";
 import { Modal } from "./components/Modal";
 import { DashboardScreen } from "./screens/Dashboard";
 import { InventoryScreen } from "./screens/Inventory";
@@ -35,7 +21,7 @@ import { RequestsScreen } from "./screens/Requests";
 import { ChatScreen } from "./screens/Donors";
 import {
   AlertTriangle, CheckCircle, MapPin,
-  Plus, Phone, Search, Bell, User, LogOut,
+  Plus, Phone, Bell, User, LogOut,
   Activity, Package, ChevronDown,
   RefreshCw, ShieldCheck, Zap, FlaskConical, Building2,
   KeyRound, X,
@@ -482,159 +468,6 @@ function ForcePasswordChangeForm({
 }
 
 // ─── Complete Profile (post-onboarding) ────────────────────────────────────
-
-function RecenterMap({ position, zoom }: { position: [number, number]; zoom: number }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(position, zoom);
-  }, [position[0], position[1]]);
-  return null;
-}
-
-function LocationClickHandler({ onPick }: { onPick: (lat: number, lng: number) => void }) {
-  useMap().on("click", (e) => onPick(e.latlng.lat, e.latlng.lng));
-  return null;
-}
-
-// Shared by CompleteProfileScreen (first-time onboarding) and
-// EditFacilityProfileModal (Account menu, after the fact) — the exact same
-// address/geocode/map/department/DOH-license fields, just wrapped in
-// different layouts with different submit handling. All state is
-// controlled from the parent so both callers can prefill it differently.
-function FacilityLocationFields({
-  address, onAddressChange,
-  position, onPositionChange,
-  department, onDepartmentChange,
-  dohLicense, onDohLicenseChange,
-}: {
-  address: string;
-  onAddressChange: (v: string) => void;
-  position: [number, number] | null;
-  onPositionChange: (p: [number, number]) => void;
-  department: string;
-  onDepartmentChange: (v: string) => void;
-  dohLicense: string;
-  onDohLicenseChange: (v: string) => void;
-}) {
-  const [geocoding, setGeocoding] = useState(false);
-  const [geocodeError, setGeocodeError] = useState<string | null>(null);
-
-  async function handleLookUpAddress() {
-    if (!address.trim()) return;
-    setGeocoding(true);
-    setGeocodeError(null);
-    try {
-      // OSM Nominatim's public search endpoint — free, no API key, rate-limited
-      // to ~1 req/sec which this "look up on click" pattern respects (never
-      // fires on keystroke).
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`
-      );
-      if (!res.ok) throw new Error("Address lookup failed");
-      const results = await res.json();
-      if (results.length === 0) {
-        setGeocodeError("No match found — try a more specific address, or drop the pin manually on the map.");
-        return;
-      }
-      onPositionChange([parseFloat(results[0].lat), parseFloat(results[0].lon)]);
-    } catch (err) {
-      setGeocodeError(err instanceof Error ? err.message : "Address lookup failed");
-    } finally {
-      setGeocoding(false);
-    }
-  }
-
-  return (
-    <>
-      <div>
-        <label className="text-[13px] font-semibold text-foreground block mb-1.5">Address</label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            required
-            value={address}
-            onChange={(e) => onAddressChange(e.target.value)}
-            placeholder="Street, barangay, city"
-            className="flex-1 h-10 px-3 text-sm border border-border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-          />
-          <button
-            type="button"
-            onClick={handleLookUpAddress}
-            disabled={geocoding || !address.trim()}
-            className="h-10 px-4 bg-white border border-border rounded-md text-[13px] font-semibold text-foreground hover:bg-secondary transition-colors disabled:opacity-60 flex items-center gap-1.5 shrink-0"
-          >
-            <Search size={15} /> {geocoding ? "Looking up…" : "Look up"}
-          </button>
-        </div>
-        {geocodeError && <p className="text-[12px] text-status-critical-text mt-1.5">{geocodeError}</p>}
-      </div>
-
-      <div>
-        <label className="text-[13px] font-semibold text-foreground block mb-1.5">
-          Confirm location on map
-        </label>
-        <p className="text-[12px] text-muted-foreground mb-2">
-          Look up your address above, or click anywhere on the map to place the pin. Drag it to fine-tune.
-        </p>
-        <div className="h-72 rounded-lg overflow-hidden border border-border">
-          <MapContainer center={position ?? DEFAULT_MAP_CENTER} zoom={position ? PIN_PLACED_ZOOM : DEFAULT_MAP_ZOOM} style={{ height: "100%", width: "100%" }}>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <LocationClickHandler onPick={(lat, lng) => onPositionChange([lat, lng])} />
-            {position && (
-              <>
-                <RecenterMap position={position} zoom={PIN_PLACED_ZOOM} />
-                <Marker
-                  position={position}
-                  draggable
-                  eventHandlers={{
-                    dragend: (e) => {
-                      const marker = e.target as L.Marker;
-                      const { lat, lng } = marker.getLatLng();
-                      onPositionChange([lat, lng]);
-                    },
-                  }}
-                />
-              </>
-            )}
-          </MapContainer>
-        </div>
-        {position && (
-          <p className="text-[11px] text-muted-foreground mt-1.5 font-mono">
-            {position[0].toFixed(5)}, {position[1].toFixed(5)}
-          </p>
-        )}
-      </div>
-
-      <div className="grid sm:grid-cols-2 gap-4">
-        <div>
-          <label className="text-[13px] font-semibold text-foreground block mb-1.5">Department / Branch</label>
-          <input
-            type="text"
-            required
-            value={department}
-            onChange={(e) => onDepartmentChange(e.target.value)}
-            placeholder="e.g. Blood Services Unit"
-            className="w-full h-10 px-3 text-sm border border-border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-          />
-        </div>
-        <div>
-          <label className="text-[13px] font-semibold text-foreground block mb-1.5">DOH license number</label>
-          <input
-            type="text"
-            required
-            value={dohLicense}
-            onChange={(e) => onDohLicenseChange(e.target.value)}
-            placeholder="e.g. DOH-BSU-00123"
-            className="w-full h-10 px-3 text-sm border border-border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-          />
-        </div>
-      </div>
-    </>
-  );
-}
 
 function CompleteProfileScreen({ user, onComplete }: { user: SessionUser; onComplete: () => void }) {
   const [address, setAddress] = useState("");
