@@ -33,6 +33,11 @@ import {
 import { getCurrentUser, type SessionUser } from "./lib/session";
 import { isDevModeEnabled, getDevFacilityId, setDevFacilityId } from "./lib/devMode";
 import {
+  BLOOD_TYPE_ORDER, getExpiryStatus, type ExpiryStatus,
+  type StatusLevel, STATUS_STYLES, EXPIRY_STYLES, stockStatus, STATUS_HEX,
+} from "./lib/statusTokens";
+import { BloodDropLogo, StatusDot, BloodTypeBadge, DinLabel, DateStamp } from "./components/BloodTypeBadge";
+import {
   AlertTriangle, CheckCircle, Clock, MapPin, Send,
   Plus, Upload, Phone, Search, Bell, User, LogOut,
   Activity, Package, ArrowRight, ChevronDown,
@@ -56,174 +61,7 @@ const bloodCompatibility: Record<string, string[]> = {
   "AB-": ["A-", "B-", "O-", "AB-"],
 };
 
-// Canonical display order for the 8 blood types — matches the order the
-// Dashboard's own "Inventory by Blood Type" chart renders in, reused here
-// (Inventory's grouped view) so the app doesn't have two conventions.
-const BLOOD_TYPE_ORDER = ["A-", "A+", "AB-", "AB+", "B-", "B+", "O-", "O+"];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-// Mirrors the backend's NOTIFY_EXPIRY_CRITICAL_DAYS / NOTIFY_EXPIRY_NEAR_DAYS
-// (server/main.py) — can't literally share a constant across languages, but
-// the two values must stay in sync: this is what decides "critical"/"near
-// expiry" here, and the backend uses the same cutoffs to decide when an
-// expiry notification actually fires. Named here (not inlined) so the two
-// places in this file that care about "is this expiring soon" both go
-// through one definition instead of each hardcoding 3/7 independently.
-const EXPIRY_CRITICAL_DAYS = 3;
-const EXPIRY_NEAR_DAYS = 7;
-
-// Single source of truth for expiry status, shared by Inventory and Dashboard
-// so the two screens can't quietly drift onto different day cutoffs.
-type ExpiryStatus = "expired" | "critical" | "near-expiry" | "ok";
-
-function getExpiryStatus(daysLeft: number): ExpiryStatus {
-  if (daysLeft < 0) return "expired";
-  if (daysLeft <= EXPIRY_CRITICAL_DAYS) return "critical";
-  if (daysLeft <= EXPIRY_NEAR_DAYS) return "near-expiry";
-  return "ok";
-}
-
-// The 3-state status language (safe/watch/critical — see theme.css's
-// --status-* tokens) used identically everywhere status appears. "expired"
-// is deliberately a 4th, separate neutral state — it isn't a warning level,
-// it's inventory that's already unusable, so it gets its own gray treatment
-// rather than being folded into "critical".
-type StatusLevel = "safe" | "watch" | "critical";
-
-const STATUS_STYLES: Record<StatusLevel, { badge: string; dot: string; panel: string; solid: string; text: string }> = {
-  safe: {
-    badge: "bg-status-safe-tint text-status-safe-text border-status-safe-border",
-    dot: "bg-status-safe",
-    panel: "bg-status-safe-tint border border-status-safe-border",
-    solid: "bg-status-safe text-white",
-    text: "text-status-safe-text",
-  },
-  watch: {
-    badge: "bg-status-watch-tint text-status-watch-text border-status-watch-border",
-    dot: "bg-status-watch",
-    panel: "bg-status-watch-tint border border-status-watch-border",
-    solid: "bg-status-watch text-white",
-    text: "text-status-watch-text",
-  },
-  critical: {
-    badge: "bg-status-critical-tint text-status-critical-text border-status-critical-border",
-    dot: "bg-status-critical",
-    panel: "bg-status-critical-tint border border-status-critical-border",
-    solid: "bg-status-critical text-white",
-    text: "text-status-critical-text",
-  },
-};
-
-const EXPIRED_STYLE = {
-  badge: "bg-gray-100 text-gray-600 border-gray-300",
-  dot: "bg-gray-400",
-  panel: "bg-gray-50 border border-gray-200",
-  solid: "bg-gray-500 text-white",
-  text: "text-gray-600",
-};
-
-const EXPIRY_STYLES: Record<ExpiryStatus, { badge: string; dot: string; rowTint: string; panel: string; solid: string; text: string; label: (daysLeft: number) => string }> = {
-  expired: { ...EXPIRED_STYLE, rowTint: "bg-gray-50", label: () => "Expired" },
-  critical: { ...STATUS_STYLES.critical, rowTint: "bg-status-critical-tint/50", label: (d) => `${d}d — Critical` },
-  "near-expiry": { ...STATUS_STYLES.watch, rowTint: "bg-status-watch-tint/40", label: (d) => `${d}d — Near Expiry` },
-  ok: { ...STATUS_STYLES.safe, rowTint: "", label: () => "OK" },
-};
-
-// units/min ratio → status level, the one rule used everywhere stock is
-// judged against a minimum (dashboard grid, chart bars, threshold dots).
-function stockStatus(units: number, min: number): StatusLevel {
-  const ratio = min > 0 ? units / min : units > 0 ? 1 : 0;
-  if (ratio < 0.6) return "critical";
-  if (ratio < 0.9) return "watch";
-  return "safe";
-}
-
-// Raw hex twins of the --status-* tokens, for the few spots (SVG/Recharts
-// `fill`) that can't take a Tailwind class and need an actual color value.
-const STATUS_HEX: Record<StatusLevel, string> = {
-  safe: "#0F766E",
-  watch: "#B8860B",
-  critical: "#BD4024",
-};
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
-
-function BloodDropLogo({ size = 32, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" className={className}>
-      <path
-        d="M16 4C16 4 7 14.5 7 20C7 24.97 11.03 29 16 29C20.97 29 25 24.97 25 20C25 14.5 16 4 16 4Z"
-        fill="#8C1B3A"
-      />
-      <path
-        d="M16 10C16 10 11 17 11 20.5C11 23.538 13.239 26 16 26"
-        stroke="rgba(255,255,255,0.35)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function StatusDot({ status }: { status: StatusLevel }) {
-  return <span className={`inline-block w-2 h-2 rounded-full ${STATUS_STYLES[status].dot} mr-1.5`} />;
-}
-
-// The product's signature element — one shared badge for every blood type
-// display, from table cells to search-picker buttons, so O-, A+, etc. always
-// read the same way no matter where they appear.
-const BLOOD_BADGE_SIZES = {
-  sm: "h-6 min-w-[26px] px-1 text-[10.5px]",
-  md: "h-7 min-w-[34px] px-1.5 text-[12px]",
-  lg: "h-9 min-w-[44px] px-2 text-[15px]",
-  // "Stamp" scale — the label-system treatment (Inventory group headers,
-  // Emergency Sourcing's compatible-alternative badges), not for ordinary
-  // inline use.
-  xl: "h-14 min-w-[64px] px-3 text-[24px]",
-} as const;
-
-function BloodTypeBadge({ type, size = "md", selected = false, className = "" }: {
-  type: string;
-  size?: keyof typeof BLOOD_BADGE_SIZES;
-  selected?: boolean;
-  className?: string;
-}) {
-  return (
-    <span
-      className={`inline-flex items-center justify-center rounded-md font-display font-bold tracking-tight leading-none ${BLOOD_BADGE_SIZES[size]} ${
-        selected
-          ? "bg-primary text-white"
-          : "bg-white text-primary border border-primary/25 shadow-sm"
-      } ${className}`}
-    >
-      {type}
-    </span>
-  );
-}
-
-// Inventory's DIN cell — wide-tracked mono text. Used only where a DIN is
-// shown at label weight (Inventory rows).
-function DinLabel({ din }: { din: string }) {
-  return (
-    <span className="inline-flex items-center font-mono text-[12px] tracking-wider uppercase text-foreground">
-      {din}
-    </span>
-  );
-}
-
-// The "stamped" expiry callout — a bordered box colored by the same
-// EXPIRY_STYLES status language used everywhere else, deliberately more
-// visually weighted than the plain collection-date text next to it (mirrors
-// how a real bag's printed expiry is the prominent, boxed date).
-function DateStamp({ date, status }: { date: string; status: ExpiryStatus }) {
-  const style = EXPIRY_STYLES[status];
-  return (
-    <span className={`inline-block font-mono text-[12px] font-semibold tracking-tight px-1.5 py-0.5 rounded border ${style.badge}`}>
-      {date}
-    </span>
-  );
-}
 
 // Same row shown two ways (what will be removed, what's blocking removal) —
 // one formatter so both stay in sync with whatever fields each upload type's
