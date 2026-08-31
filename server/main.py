@@ -2638,6 +2638,96 @@ def admin_update_facility_status(facility_id: int, body: UpdateFacilityStatusBod
     return dict(row)
 
 
+class DeleteFacilityBody(BaseModel):
+    confirm_name: str
+
+
+# Every table of real operational data with a facility_id column (or a
+# facility_id-equivalent, like requests' two-sided requesting/supplying
+# columns) — checked explicitly so a blocked deletion gets a message an
+# admin can actually act on, rather than a raw foreign-key-violation error.
+# blast_messages/blast_replies have no facility_id column of their own (only
+# blast_id/donor_id), so a facility with either is already caught via the
+# blasts/donors checks below. Login accounts (users.facility_id) are
+# deliberately NOT in this list — they aren't "data referencing the
+# facility" the way a blood unit or donor is, they're the facility's own
+# credentials, so deletion removes them as part of the same confirmed
+# action instead of blocking on them (see admin_delete_facility below).
+_FACILITY_ENTANGLEMENT_QUERIES: list[tuple[str, str]] = [
+    ("blood unit", "SELECT count(*) FROM blood_units WHERE facility_id = :id"),
+    ("donor", "SELECT count(*) FROM donors WHERE facility_id = :id"),
+    (
+        "request",
+        "SELECT count(*) FROM requests WHERE requesting_facility_id = :id OR supplying_facility_id = :id",
+    ),
+    ("upload history row", "SELECT count(*) FROM upload_history WHERE facility_id = :id"),
+    ("notification", "SELECT count(*) FROM notifications WHERE facility_id = :id"),
+    ("donor blast", "SELECT count(*) FROM blasts WHERE facility_id = :id"),
+    ("coordination message", "SELECT count(*) FROM request_messages WHERE sender_facility_id = :id"),
+    ("inventory snapshot", "SELECT count(*) FROM inventory_snapshots WHERE facility_id = :id"),
+    ("forecast alert record", "SELECT count(*) FROM forecast_alert_state WHERE facility_id = :id"),
+]
+
+
+@app.delete("/admin/facilities/{facility_id}")
+def admin_delete_facility(facility_id: int, body: DeleteFacilityBody, admin: dict = Depends(require_admin_role)):
+    """The one genuinely irreversible admin action in the app, deliberately
+    hard to reach by accident rather than merely "used carefully":
+
+    1. Only ever allowed on an already-deactivated facility — deletion isn't
+       even attempted on an active one, forcing a real two-step
+       deactivate-then-delete process as the safety net.
+    2. Blocked outright if any real operational data still references this
+       facility, checked across every table with a facility_id column —
+       reported back precisely (what, and how many), not just "can't
+       delete." Login accounts are the one exception: they're removed as
+       part of this same action (see step 4) rather than blocking on them,
+       since a facility's own credentials aren't "other data referencing
+       it" the way a blood unit or donor is.
+    3. Requires the admin to type the facility's exact current name, not a
+       Yes/No click — the one place in the app that asks for typed
+       confirmation, reserved for the one action with no undo.
+    4. Deletes the facility's own login account(s) in the same transaction,
+       so a real, in-use facility can be fully removed without needing
+       direct database access — this is the only cascade this endpoint
+       performs; every other table above still hard-blocks.
+
+    Logged to stdout on success (facility name, accounts removed, who, when)
+    — there's no dedicated audit table, so this line is the record.
+    """
+    with engine.begin() as conn:
+        facility = conn.execute(
+            text("SELECT id, name, is_active FROM facilities WHERE id = :id"), {"id": facility_id}
+        ).mappings().first()
+        if facility is None:
+            raise HTTPException(status_code=404, detail="facility not found")
+
+        if facility["is_active"]:
+            raise HTTPException(status_code=400, detail="deactivate this facility before it can be deleted")
+
+        if body.confirm_name != facility["name"]:
+            raise HTTPException(status_code=400, detail="typed name does not match this facility's exact name")
+
+        blocking: list[str] = []
+        for label, query in _FACILITY_ENTANGLEMENT_QUERIES:
+            count = conn.execute(text(query), {"id": facility_id}).scalar()
+            if count > 0:
+                blocking.append(f"{count} {label}{'' if count == 1 else 's'}")
+        if blocking:
+            raise HTTPException(status_code=409, detail=f"Cannot delete: {', '.join(blocking)} still reference this facility")
+
+        deleted_accounts = conn.execute(
+            text("DELETE FROM users WHERE facility_id = :id RETURNING email"), {"id": facility_id}
+        ).scalars().all()
+        conn.execute(text("DELETE FROM facilities WHERE id = :id"), {"id": facility_id})
+
+    print(
+        f"[admin] facility deleted: id={facility_id} name={facility['name']!r} "
+        f"accounts_removed={list(deleted_accounts)} by={admin['email']} at={datetime.now(timezone.utc).isoformat()}"
+    )
+    return {"deleted": True, "id": facility_id, "name": facility["name"], "accounts_removed": len(deleted_accounts)}
+
+
 # ─── Donors (Step 7A) ───────────────────────────────────────────────────────
 
 VALID_BLOOD_TYPES = set(BLOOD_COMPATIBILITY.keys())

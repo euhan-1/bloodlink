@@ -1,13 +1,96 @@
 import { useState, useEffect } from "react";
-import { KeyRound, Plus, X } from "lucide-react";
+import { AlertTriangle, KeyRound, Plus, Trash2, X } from "lucide-react";
 import {
-  adminListFacilities, adminCreateFacility, adminSetFacilityActive, adminResetAccountPassword,
+  adminListFacilities, adminCreateFacility, adminSetFacilityActive, adminResetAccountPassword, adminDeleteFacility,
   type AdminFacility, type AdminFacilityAccount, type CreateFacilityAccountResult, type AdminPasswordResetResult,
 } from "../lib/api";
 import { type SessionUser } from "../lib/session";
 import { STATUS_STYLES } from "../lib/statusTokens";
 import { BloodDropLogo } from "../components/BloodTypeBadge";
 import { AccountMenu } from "../components/AccountMenu";
+import { Modal } from "../components/Modal";
+
+// Deliberately the one place in the app that asks for typed confirmation
+// instead of a Yes/No click — reserved for the one action with no undo.
+// Only ever reachable for an already-deactivated facility (see the Delete
+// button below, which doesn't even render for an active one); the server
+// re-checks both that and full data-entanglement independently regardless,
+// so this modal is a UX gate, not the actual safety mechanism.
+function DeleteFacilityModal({ facility, onClose, onDeleted }: {
+  facility: AdminFacility;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [typedName, setTypedName] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const nameMatches = typedName === facility.name;
+
+  async function handleDelete() {
+    if (!nameMatches) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await adminDeleteFacility(facility.id, typedName);
+      onDeleted();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete facility");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <Modal title="Delete Facility" onClose={onClose}>
+      <div className="space-y-4">
+        <div className="rounded-lg border border-status-critical-border bg-status-critical-tint px-3 py-2.5 flex gap-2.5">
+          <AlertTriangle size={16} className="text-status-critical-text shrink-0 mt-0.5" />
+          <p className="text-[13px] text-status-critical-text leading-snug">
+            This permanently deletes <b>{facility.name}</b> — including its login account(s) — and cannot be undone.
+            It only succeeds if no other real data (blood units, donors, requests, uploads, notifications, blasts)
+            still references it.
+          </p>
+        </div>
+
+        <div>
+          <label className="text-[12px] font-semibold text-foreground block mb-1.5">
+            Type <span className="font-mono font-bold">{facility.name}</span> to confirm
+          </label>
+          <input
+            autoFocus
+            value={typedName}
+            onChange={(e) => setTypedName(e.target.value)}
+            placeholder={facility.name}
+            className="w-full h-9 px-3 text-sm border border-border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-status-critical-border focus:border-status-critical-text transition-all"
+          />
+        </div>
+
+        {error && (
+          <div className="text-[12.5px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2 leading-snug">
+            {error}
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 h-10 border border-border rounded-md text-sm font-semibold text-foreground hover:bg-secondary transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={!nameMatches || deleting}
+            className="flex-1 h-10 bg-status-critical-text text-white text-sm font-bold rounded-md hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {deleting ? "Deleting…" : "Delete Permanently"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 // ─── Admin Dashboard ────────────────────────────────────────────────────────
 
@@ -29,6 +112,8 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
   const [resetBusyId, setResetBusyId] = useState<number | null>(null);
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetResult, setResetResult] = useState<AdminPasswordResetResult | null>(null);
+
+  const [deleteTarget, setDeleteTarget] = useState<AdminFacility | null>(null);
 
   function loadFacilities() {
     setLoading(true);
@@ -264,17 +349,32 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => handleToggleActive(f)}
-                          disabled={statusBusyId === f.id}
-                          className={`h-7 px-3 rounded-md text-[12px] font-semibold border transition-colors disabled:opacity-60 ${
-                            f.is_active
-                              ? "border-status-critical-border text-status-critical-text hover:bg-status-critical-tint"
-                              : "border-status-safe-border text-status-safe-text hover:bg-status-safe-tint"
-                          }`}
-                        >
-                          {statusBusyId === f.id ? "…" : f.is_active ? "Deactivate" : "Reactivate"}
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleToggleActive(f)}
+                            disabled={statusBusyId === f.id}
+                            className={`h-7 px-3 rounded-md text-[12px] font-semibold border transition-colors disabled:opacity-60 ${
+                              f.is_active
+                                ? "border-status-critical-border text-status-critical-text hover:bg-status-critical-tint"
+                                : "border-status-safe-border text-status-safe-text hover:bg-status-safe-tint"
+                            }`}
+                          >
+                            {statusBusyId === f.id ? "…" : f.is_active ? "Deactivate" : "Reactivate"}
+                          </button>
+                          {/* Deletion is only ever reachable for an already-deactivated
+                              facility — not just disabled, not rendered at all for an
+                              active one, so there's no path to it without the
+                              deactivate step happening first. */}
+                          {!f.is_active && (
+                            <button
+                              onClick={() => setDeleteTarget(f)}
+                              title="Delete facility"
+                              className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-status-critical-text hover:border-status-critical-border hover:bg-status-critical-tint transition-colors"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -284,6 +384,14 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
           )}
         </div>
       </div>
+
+      {deleteTarget && (
+        <DeleteFacilityModal
+          facility={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={loadFacilities}
+        />
+      )}
     </div>
   );
 }

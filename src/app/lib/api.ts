@@ -65,6 +65,18 @@ export async function apiPatch<T>(path: string, body: unknown, headers?: Headers
   return res.json();
 }
 
+export async function apiDelete<T>(path: string, body: unknown, headers?: HeadersInit): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", ...withAuthHeaders(headers) },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
 export async function apiUploadFile<T>(path: string, file: File): Promise<T> {
   const formData = new FormData();
   formData.append("file", file);
@@ -229,6 +241,12 @@ export type AdminPasswordResetResult = { id: number; email: string; temporary_pa
 
 export function adminResetAccountPassword(userId: number): Promise<AdminPasswordResetResult> {
   return apiPost<AdminPasswordResetResult>(`/admin/accounts/${userId}/reset-password`, {});
+}
+
+export type AdminDeleteFacilityResult = { deleted: true; id: number; name: string; accounts_removed: number };
+
+export function adminDeleteFacility(facilityId: number, confirmName: string): Promise<AdminDeleteFacilityResult> {
+  return apiDelete<AdminDeleteFacilityResult>(`/admin/facilities/${facilityId}`, { confirm_name: confirmName });
 }
 
 // ─── Historical inventory-snapshot backfill (blood banks only — the server
