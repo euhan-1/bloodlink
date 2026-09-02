@@ -68,7 +68,7 @@ export function FacilityLocationFields({
   return (
     <>
       <div>
-        <label className="text-[13px] font-semibold text-foreground block mb-1.5">Address</label>
+        <label className="text-[14px] font-semibold text-foreground block mb-1.5">Address</label>
         <div className="flex gap-2">
           <input
             type="text"
@@ -82,19 +82,19 @@ export function FacilityLocationFields({
             type="button"
             onClick={handleLookUpAddress}
             disabled={geocoding || !address.trim()}
-            className="h-10 px-4 bg-white border border-border rounded-md text-[13px] font-semibold text-foreground hover:bg-secondary transition-colors disabled:opacity-60 flex items-center gap-1.5 shrink-0"
+            className="h-10 px-4 bg-white border border-border rounded-md text-[14px] font-semibold text-foreground hover:bg-secondary transition-colors disabled:opacity-60 flex items-center gap-1.5 shrink-0"
           >
             <Search size={15} /> {geocoding ? "Looking up…" : "Look up"}
           </button>
         </div>
-        {geocodeError && <p className="text-[12px] text-status-critical-text mt-1.5">{geocodeError}</p>}
+        {geocodeError && <p className="text-[13px] text-status-critical-text mt-1.5">{geocodeError}</p>}
       </div>
 
       <div>
-        <label className="text-[13px] font-semibold text-foreground block mb-1.5">
+        <label className="text-[14px] font-semibold text-foreground block mb-1.5">
           Confirm location on map
         </label>
-        <p className="text-[12px] text-muted-foreground mb-2">
+        <p className="text-[13px] text-muted-foreground mb-2">
           Look up your address above, or click anywhere on the map to place the pin. Drag it to fine-tune.
         </p>
         <div className="h-72 rounded-lg overflow-hidden border border-border">
@@ -123,7 +123,7 @@ export function FacilityLocationFields({
           </MapContainer>
         </div>
         {position && (
-          <p className="text-[11px] text-muted-foreground mt-1.5 font-mono">
+          <p className="text-[12px] text-muted-foreground mt-1.5 font-mono">
             {position[0].toFixed(5)}, {position[1].toFixed(5)}
           </p>
         )}
@@ -131,7 +131,7 @@ export function FacilityLocationFields({
 
       <div className="grid sm:grid-cols-2 gap-4">
         <div>
-          <label className="text-[13px] font-semibold text-foreground block mb-1.5">Department / Branch</label>
+          <label className="text-[14px] font-semibold text-foreground block mb-1.5">Department / Branch</label>
           <input
             type="text"
             required
@@ -142,7 +142,7 @@ export function FacilityLocationFields({
           />
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-foreground block mb-1.5">DOH license number</label>
+          <label className="text-[14px] font-semibold text-foreground block mb-1.5">DOH license number</label>
           <input
             type="text"
             required

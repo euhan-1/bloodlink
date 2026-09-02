@@ -6,6 +6,7 @@ import { getDevFacilityId, isDevModeEnabled } from "../lib/devMode";
 import { BloodTypeBadge } from "../components/BloodTypeBadge";
 import { Modal } from "../components/Modal";
 import { FacilityNetworkMap, type Facility } from "../components/FacilityNetworkMap";
+import { useFlashOnChange } from "../lib/motion";
 
 // Chat messages poll faster than notifications (App.tsx's NOTIFICATION_POLL_MS)
 // since a coordination chat is a live conversation, not a background alert.
@@ -71,20 +72,27 @@ function IncomingRequestCard({
   isChatSelected: boolean;
   onOpenChat: (id: number) => void;
 }) {
+  // Flashes once when this request's actual phase changes (pending ->
+  // accepted -> released -> completed) — not on every poll/re-render, only
+  // when the thing the card is reporting has genuinely moved forward.
+  const phase = `${req.status}:${req.supplier_confirmed_at ?? ""}:${req.requester_confirmed_at ?? ""}`;
+  const flash = useFlashOnChange(phase);
   return (
-    <div className={`rounded-lg border p-3 ${isChatSelected ? "border-primary" : "border-border"}`}>
+    <div
+      className={`rounded-lg border p-3 ${isChatSelected ? "border-primary" : "border-border"} ${flash ? "animate-value-flash-bg" : ""}`}
+    >
       <div className="flex items-center justify-between mb-1.5">
-        <div className="text-[13px] font-semibold text-foreground">
+        <div className="text-[14px] font-semibold text-foreground">
           {req.requesting_facility_name ?? "Unknown facility"}
         </div>
         <BloodTypeBadge type={req.blood_type} size="sm" />
       </div>
-      <div className="text-[11px] text-muted-foreground mb-2">
+      <div className="text-[12px] text-muted-foreground mb-2">
         {req.quantity} units · {EMERGENCY_TYPE_LABELS[req.emergency_type]}
       </div>
       <button
         onClick={() => onOpenChat(req.id)}
-        className={`block text-[11px] font-semibold mb-2 hover:underline ${isChatSelected ? "text-primary" : "text-muted-foreground"}`}
+        className={`block text-[12px] font-semibold mb-2 hover:underline ${isChatSelected ? "text-primary" : "text-muted-foreground"}`}
       >
         {isChatSelected ? "Viewing chat" : "Open chat"}
       </button>
@@ -94,14 +102,14 @@ function IncomingRequestCard({
           <button
             onClick={() => onAction(req.id, "accept")}
             disabled={busy}
-            className="h-7 px-3 bg-primary text-white text-[11px] font-semibold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
+            className="h-7 px-3 bg-primary text-white text-[12px] font-semibold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
           >
             {busy ? "…" : "Accept"}
           </button>
           <button
             onClick={() => onAction(req.id, "decline")}
             disabled={busy}
-            className="h-7 px-3 bg-white border border-border text-[11px] font-semibold text-foreground rounded-lg hover:bg-secondary transition-colors disabled:opacity-60"
+            className="h-7 px-3 bg-white border border-border text-[12px] font-semibold text-foreground rounded-lg hover:bg-secondary transition-colors disabled:opacity-60"
           >
             Decline
           </button>
@@ -112,28 +120,79 @@ function IncomingRequestCard({
         <button
           onClick={() => onAction(req.id, "confirm-release")}
           disabled={busy}
-          className="w-full h-7 bg-primary text-white text-[11px] font-semibold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
+          className="w-full h-7 bg-primary text-white text-[12px] font-semibold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
         >
           {busy ? "Confirming…" : "Confirm Release"}
         </button>
       )}
 
       {req.status === "accepted" && req.supplier_confirmed_at && !req.requester_confirmed_at && (
-        <span className="text-[11px] font-semibold text-status-watch-text">Released — awaiting requester confirmation</span>
+        <span className="inline-block animate-success-pop text-[12px] font-semibold text-status-watch-text">Released — awaiting requester confirmation</span>
       )}
 
       {req.status === "completed" && (
-        <span className="flex items-center gap-1 text-[11px] font-semibold text-status-safe-text">
+        <span className="flex items-center gap-1 animate-success-pop text-[12px] font-semibold text-status-safe-text">
           <CheckCircle size={12} /> Completed
         </span>
       )}
 
       {req.status === "declined" && (
-        <span className="text-[11px] font-semibold text-muted-foreground">Declined</span>
+        <span className="text-[12px] font-semibold text-muted-foreground">Declined</span>
       )}
 
       {req.status === "cancelled" && (
-        <span className="text-[11px] font-semibold text-muted-foreground">Cancelled by requester</span>
+        <span className="text-[12px] font-semibold text-muted-foreground">Cancelled by requester</span>
+      )}
+    </div>
+  );
+}
+
+function AcceptedRequestCard({
+  req, canConfirmReceipt, busy, isChatSelected, onOpenChat, onConfirmReceipt,
+}: {
+  req: RequestRow;
+  canConfirmReceipt: boolean;
+  busy: boolean;
+  isChatSelected: boolean;
+  onOpenChat: () => void;
+  onConfirmReceipt: () => void;
+}) {
+  const phase = `${req.status}:${req.supplier_confirmed_at ?? ""}`;
+  const flash = useFlashOnChange(phase);
+  return (
+    <div
+      className={`rounded-lg border p-3 ${isChatSelected ? "border-primary" : "border-border"} ${flash ? "animate-value-flash-bg" : ""}`}
+    >
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="text-[14px] font-semibold text-foreground">{req.supplying_facility_name}</div>
+        <BloodTypeBadge type={req.blood_type} size="sm" />
+      </div>
+      <div className="text-[12px] text-muted-foreground mb-2">
+        {req.quantity} units · {EMERGENCY_TYPE_LABELS[req.emergency_type]}
+      </div>
+      <button
+        onClick={onOpenChat}
+        className={`block text-[12px] font-semibold mb-2 hover:underline ${isChatSelected ? "text-primary" : "text-muted-foreground"}`}
+      >
+        {isChatSelected ? "Viewing chat" : "Open chat"}
+      </button>
+
+      {req.status === "completed" ? (
+        <span className="flex items-center gap-1 animate-success-pop text-[12px] font-semibold text-status-safe-text">
+          <CheckCircle size={12} /> Completed
+        </span>
+      ) : !req.supplier_confirmed_at ? (
+        <span className="text-[12px] text-muted-foreground">Waiting for supplier to confirm release</span>
+      ) : canConfirmReceipt ? (
+        <button
+          onClick={onConfirmReceipt}
+          disabled={busy}
+          className="w-full h-7 bg-primary text-white text-[12px] font-semibold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
+        >
+          {busy ? "Confirming…" : "Confirm Receipt"}
+        </button>
+      ) : (
+        <span className="text-[12px] text-muted-foreground">Switch to the requesting facility above to confirm receipt</span>
       )}
     </div>
   );
@@ -385,14 +444,14 @@ export function RequestsScreen({
   const pendingOnly = requests.filter((r) => r.status === "pending");
 
   return (
-    <div className="max-w-screen-xl mx-auto px-6 py-6">
+    <div className="max-w-screen-2xl mx-auto px-6 py-6">
       {/* Sub-tabs */}
       <div className="flex gap-1 mb-6 bg-secondary rounded-lg p-1 w-fit">
         {(["sourcing", "transfer", "pending"] as RequestTab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`relative px-5 py-2 text-[13px] font-semibold rounded transition-colors ${
+            className={`relative px-5 py-2 text-[14px] font-semibold rounded transition-colors ${
               tab === t
                 ? "bg-white text-foreground shadow-sm border border-border"
                 : "text-muted-foreground hover:text-foreground"
@@ -400,7 +459,7 @@ export function RequestsScreen({
           >
             {t === "sourcing" ? "Emergency Sourcing" : t === "transfer" ? "Request & Transfer" : "Pending Requests"}
             {t === "pending" && pendingOnly.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                 {pendingOnly.length}
               </span>
             )}
@@ -415,7 +474,7 @@ export function RequestsScreen({
             <div className="bg-white border border-border rounded-xl p-5">
               <h3 className="font-semibold text-foreground mb-4">Find Blood Supply</h3>
               <div className="mb-3">
-                <label className="text-[12px] font-semibold text-muted-foreground block mb-1.5">
+                <label className="text-[13px] font-semibold text-muted-foreground block mb-1.5">
                   Blood type needed
                 </label>
                 <div className="grid grid-cols-4 gap-1.5">
@@ -423,7 +482,7 @@ export function RequestsScreen({
                     <button
                       key={bt}
                       onClick={() => setSearchType(bt)}
-                      className={`py-2 text-[13px] font-display font-bold rounded-lg border transition-colors ${
+                      className={`py-2 text-[14px] font-display font-bold rounded-lg border transition-colors ${
                         searchType === bt
                           ? "bg-primary text-white border-primary"
                           : "bg-primary-tint text-primary border-transparent hover:border-primary/40"
@@ -435,7 +494,7 @@ export function RequestsScreen({
                 </div>
               </div>
               <div className="mb-4">
-                <label className="text-[12px] font-semibold text-muted-foreground block mb-1.5">
+                <label className="text-[13px] font-semibold text-muted-foreground block mb-1.5">
                   Units needed
                 </label>
                 <div className="flex items-center gap-2">
@@ -463,7 +522,7 @@ export function RequestsScreen({
                 <div className="bg-info-tint border border-info-border rounded-xl px-4 py-3 flex gap-3">
                   <AlertTriangle size={15} className="text-info shrink-0 mt-0.5" />
                   <div>
-                    <div className="text-[12px] font-semibold text-info-text mb-1">
+                    <div className="text-[13px] font-semibold text-info-text mb-1">
                       No exact match? Compatible alternatives:
                     </div>
                     <div className="flex flex-wrap gap-1.5">
@@ -471,13 +530,13 @@ export function RequestsScreen({
                         <button
                           key={t}
                           onClick={() => setSearchType(t)}
-                          className="px-2.5 py-0.5 text-[12px] font-bold rounded border bg-white border-info-border text-info hover:bg-info-tint transition-colors"
+                          className="px-2.5 py-0.5 text-[13px] font-bold rounded border bg-white border-info-border text-info hover:bg-info-tint transition-colors"
                         >
                           {t}
                         </button>
                       ))}
                     </div>
-                    <div className="text-[10px] text-info mt-1.5 leading-snug">
+                    <div className="text-[11px] text-info mt-1.5 leading-snug">
                       Based on standard donor-recipient compatibility. Always verify with clinical staff.
                     </div>
                   </div>
@@ -486,16 +545,16 @@ export function RequestsScreen({
             })()}
 
             <div className="space-y-2">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-1">
+              <div className="text-[12px] font-bold uppercase tracking-wider text-muted-foreground px-1">
                 Nearest Facilities — {searchType} Available
               </div>
               {banksLoading && (
-                <div className="bg-white border border-border rounded-xl p-6 text-center text-[12px] text-muted-foreground">
+                <div className="bg-white border border-border rounded-xl p-6 text-center text-[13px] text-muted-foreground">
                   Loading facilities…
                 </div>
               )}
               {!banksLoading && banksError && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center text-[12px] text-red-700">
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center text-[13px] text-red-700">
                   Failed to load facilities: {banksError}
                 </div>
               )}
@@ -511,27 +570,27 @@ export function RequestsScreen({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex gap-3">
-                      <div className="w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-[12px] flex items-center justify-center shrink-0 mt-0.5">
                         {i + 1}
                       </div>
                       <div>
-                        <div className="font-semibold text-[13px] text-foreground leading-tight">
+                        <div className="font-semibold text-[14px] text-foreground leading-tight">
                           {bank.name}
                         </div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5">{bank.address}</div>
+                        <div className="text-[12px] text-muted-foreground mt-0.5">{bank.address}</div>
                         <div className="flex items-center gap-1 mt-1.5">
                           <MapPin size={11} className="text-muted-foreground" />
-                          <span className="text-[12px] font-semibold text-foreground">{bank.distance_km} km</span>
+                          <span className="text-[13px] font-semibold text-foreground">{bank.distance_km} km</span>
                         </div>
                       </div>
                     </div>
                     <div className="shrink-0">
                       {bank.available ? (
-                        <span className="flex items-center gap-1 text-[11px] font-semibold bg-status-safe-tint text-status-safe-text px-2 py-0.5 rounded-full border border-status-safe-border">
+                        <span className="flex items-center gap-1 text-[12px] font-semibold bg-status-safe-tint text-status-safe-text px-2 py-0.5 rounded-full border border-status-safe-border">
                           <CheckCircle size={11} /> Available
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1 text-[11px] font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full border border-gray-200">
+                        <span className="flex items-center gap-1 text-[12px] font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full border border-gray-200">
                           Unavailable
                         </span>
                       )}
@@ -539,7 +598,7 @@ export function RequestsScreen({
                   </div>
                   {!bank.available && bank.compatible_alternatives.length > 0 && (
                     <div className="mt-2 pt-2 border-t border-border">
-                      <div className="text-[11px] text-info-text font-medium mb-1">
+                      <div className="text-[12px] text-info-text font-medium mb-1">
                         {searchType} unavailable here — compatible alternative{bank.compatible_alternatives.length > 1 ? "s" : ""} in stock:
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -550,7 +609,9 @@ export function RequestsScreen({
                             className="flex items-center gap-1.5 rounded-lg hover:opacity-80 transition-opacity"
                           >
                             <BloodTypeBadge type={alt.blood_type} size="lg" />
-                            <span className="text-[11px] font-semibold text-muted-foreground">{alt.usable_units} units</span>
+                            <span className="flex items-center gap-1 text-[12px] font-semibold bg-status-safe-tint text-status-safe-text px-2 py-0.5 rounded-full border border-status-safe-border">
+                              <CheckCircle size={11} /> Available
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -559,14 +620,14 @@ export function RequestsScreen({
                   {selectedBank === bank.id && bank.available && (
                     <div className="mt-3 pt-3 border-t border-border">
                       {justSentBankId === bank.id ? (
-                        <div className="w-full h-8 bg-status-safe-tint text-status-safe-text border border-status-safe-border rounded-lg text-[12px] font-semibold flex items-center justify-center gap-1.5">
+                        <div className="w-full h-8 bg-status-safe-tint text-status-safe-text border border-status-safe-border rounded-lg text-[13px] font-semibold flex items-center justify-center gap-1.5">
                           <CheckCircle size={14} /> Request Sent
                         </div>
                       ) : (
                         <button
                           onClick={() => sendRequest(bank.id)}
                           disabled={submitting}
-                          className="w-full h-8 bg-primary text-white text-[12px] font-semibold rounded-lg hover:bg-primary-hover transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
+                          className="w-full h-8 bg-primary text-white text-[13px] font-semibold rounded-lg hover:bg-primary-hover transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
                         >
                           <ArrowRight size={14} /> {submitting ? "Sending…" : "Request from this facility"}
                         </button>
@@ -581,12 +642,12 @@ export function RequestsScreen({
           {/* Facility detail panel */}
           <div className="lg:col-span-3 bg-white border border-border rounded-xl flex flex-col">
             {banksLoading && (
-              <div className="flex-1 flex items-center justify-center text-center px-8 py-16 text-[13px] text-muted-foreground">
+              <div className="flex-1 flex items-center justify-center text-center px-8 py-16 text-[14px] text-muted-foreground">
                 Loading facilities…
               </div>
             )}
             {!banksLoading && banksError && (
-              <div className="flex-1 flex items-center justify-center text-center px-8 py-16 text-[13px] text-red-700">
+              <div className="flex-1 flex items-center justify-center text-center px-8 py-16 text-[14px] text-red-700">
                 Failed to load facilities: {banksError}
               </div>
             )}
@@ -597,14 +658,14 @@ export function RequestsScreen({
                   <div className="px-6 py-4 border-b border-border flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold text-foreground">{bank.name}</h3>
-                      <p className="text-[12px] text-muted-foreground mt-0.5">{bank.address}</p>
+                      <p className="text-[13px] text-muted-foreground mt-0.5">{bank.address}</p>
                     </div>
                     {bank.available ? (
-                      <span className="flex items-center gap-1 text-[12px] font-semibold bg-status-safe-tint text-status-safe-text px-3 py-1 rounded-full border border-status-safe-border">
+                      <span className="flex items-center gap-1 text-[13px] font-semibold bg-status-safe-tint text-status-safe-text px-3 py-1 rounded-full border border-status-safe-border">
                         <CheckCircle size={13} /> Available
                       </span>
                     ) : (
-                      <span className="text-[12px] font-semibold bg-gray-100 text-gray-500 px-3 py-1 rounded-full border border-gray-200">
+                      <span className="text-[13px] font-semibold bg-gray-100 text-gray-500 px-3 py-1 rounded-full border border-gray-200">
                         Unavailable
                       </span>
                     )}
@@ -618,18 +679,19 @@ export function RequestsScreen({
                   </div>
 
                   <div className="px-6 py-5 space-y-3">
-                    <div className="grid grid-cols-2 gap-3 text-[13px]">
+                    <div className="grid grid-cols-2 gap-3 text-[14px]">
                       {[
                         { label: "Distance", value: `${bank.distance_km} km` },
                         { label: "Availability", value: bank.available ? "Available" : "Unavailable" },
                         { label: "Blood type needed", value: `${searchType} (${quantityNeeded} units)` },
-                        {
-                          label: "Est. usable stock",
-                          value: bank.available ? `${bank.usable_units} units above reserve` : "Below safety reserve",
-                        },
+                        // No exact stock number here — a facility never sees another
+                        // facility's raw inventory count, matching the paper's
+                        // Availability Status definition. "Availability" above is
+                        // the complete signal; a separate tile repeating it as a
+                        // number-shaped fact would be misleading, not just redundant.
                       ].map(({ label, value }) => (
                         <div key={label} className="bg-secondary rounded-lg px-4 py-3">
-                          <div className="text-[11px] text-muted-foreground font-medium mb-0.5">{label}</div>
+                          <div className="text-[12px] text-muted-foreground font-medium mb-0.5">{label}</div>
                           <div className="font-semibold text-foreground">{value}</div>
                         </div>
                       ))}
@@ -637,7 +699,7 @@ export function RequestsScreen({
 
                     {!bank.available && bank.compatible_alternatives.length > 0 && (
                       <div className="bg-info-tint border border-info-border rounded-lg px-4 py-3">
-                        <div className="text-[12px] font-semibold text-info-text mb-1.5">
+                        <div className="text-[13px] font-semibold text-info-text mb-1.5">
                           {searchType} unavailable here — compatible alternatives in stock:
                         </div>
                         <div className="flex flex-wrap gap-2.5">
@@ -648,11 +710,13 @@ export function RequestsScreen({
                               className="flex items-center gap-1.5 rounded-lg hover:opacity-80 transition-opacity"
                             >
                               <BloodTypeBadge type={alt.blood_type} size="xl" />
-                              <span className="text-[12px] font-semibold text-muted-foreground">{alt.usable_units} units</span>
+                              <span className="flex items-center gap-1 text-[13px] font-semibold bg-status-safe-tint text-status-safe-text px-2.5 py-1 rounded-full border border-status-safe-border">
+                                <CheckCircle size={13} /> Available
+                              </span>
                             </button>
                           ))}
                         </div>
-                        <div className="text-[10px] text-info mt-1.5 leading-snug">
+                        <div className="text-[11px] text-info mt-1.5 leading-snug">
                           Selecting a type re-runs the search — you'll need to review and confirm before sending a request for a different type.
                         </div>
                       </div>
@@ -661,11 +725,11 @@ export function RequestsScreen({
                     {bank.available && (
                       <>
                         <div>
-                          <label className="text-[12px] font-semibold text-muted-foreground block mb-1.5">
+                          <label className="text-[13px] font-semibold text-muted-foreground block mb-1.5">
                             Reason for request
                           </label>
                           {isBloodBankRequester ? (
-                            <div className="py-2 px-3 text-[12px] font-bold rounded-lg border border-border bg-secondary text-foreground w-fit">
+                            <div className="py-2 px-3 text-[13px] font-bold rounded-lg border border-border bg-secondary text-foreground w-fit">
                               Restock
                             </div>
                           ) : (
@@ -674,7 +738,7 @@ export function RequestsScreen({
                                 <button
                                   key={et}
                                   onClick={() => setEmergencyType(et)}
-                                  className={`py-2 text-[12px] font-bold rounded-lg border transition-colors ${
+                                  className={`py-2 text-[13px] font-bold rounded-lg border transition-colors ${
                                     emergencyType === et
                                       ? "bg-primary text-white border-primary"
                                       : "bg-white text-foreground border-border hover:border-primary/40"
@@ -688,20 +752,20 @@ export function RequestsScreen({
                         </div>
 
                         {submitError && (
-                          <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                          <div className="text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                             Failed to send request: {submitError}
                           </div>
                         )}
 
                         {justSentBankId === bank.id ? (
-                          <div className="w-full h-10 bg-status-safe-tint text-status-safe-text border border-status-safe-border rounded-lg text-[13px] font-semibold flex items-center justify-center gap-2">
+                          <div className="w-full h-10 bg-status-safe-tint text-status-safe-text border border-status-safe-border rounded-lg text-[14px] font-semibold flex items-center justify-center gap-2">
                             <CheckCircle size={15} /> Request Sent
                           </div>
                         ) : (
                           <button
                             onClick={() => sendRequest(bank.id)}
                             disabled={submitting}
-                            className="w-full h-10 bg-primary text-white text-[13px] font-semibold rounded-lg hover:bg-primary-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                            className="w-full h-10 bg-primary text-white text-[14px] font-semibold rounded-lg hover:bg-primary-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
                           >
                             <ArrowRight size={15} /> {submitting ? "Sending…" : "Send Request to This Facility"}
                           </button>
@@ -717,7 +781,7 @@ export function RequestsScreen({
                   <MapPin size={22} className="text-muted-foreground" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-1">Select a facility</h3>
-                <p className="text-[13px] text-muted-foreground max-w-xs leading-relaxed">
+                <p className="text-[14px] text-muted-foreground max-w-xs leading-relaxed">
                   Choose a blood bank from the list to view its details and send a request.
                 </p>
               </div>
@@ -731,7 +795,7 @@ export function RequestsScreen({
           {/* Transfer confirmation flow */}
           <div className="lg:col-span-2 space-y-4">
             {actionError && (
-              <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <div className="text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                 {actionError}
               </div>
             )}
@@ -745,18 +809,18 @@ export function RequestsScreen({
                   ?? "…"
                 }
               </h3>
-              <p className="text-[12px] text-muted-foreground mb-4">
+              <p className="text-[13px] text-muted-foreground mb-4">
                 Requests directed to you as the supplying facility
               </p>
 
               {incomingLoading && (
-                <div className="text-[12px] text-muted-foreground py-4 text-center">Loading…</div>
+                <div className="text-[13px] text-muted-foreground py-4 text-center">Loading…</div>
               )}
               {!incomingLoading && incomingError && (
-                <div className="text-[12px] text-red-700 py-4 text-center">Failed to load: {incomingError}</div>
+                <div className="text-[13px] text-red-700 py-4 text-center">Failed to load: {incomingError}</div>
               )}
               {!incomingLoading && !incomingError && incomingRequests.length === 0 && (
-                <div className="text-[12px] text-muted-foreground py-4 text-center">
+                <div className="text-[13px] text-muted-foreground py-4 text-center">
                   No incoming requests for this facility.
                 </div>
               )}
@@ -779,73 +843,36 @@ export function RequestsScreen({
             {/* Outgoing requests — requester-side confirmation */}
             <div className="bg-white border border-border rounded-xl p-5">
               <h3 className="font-semibold text-foreground mb-1">Your Requests Awaiting Confirmation</h3>
-              <p className="text-[12px] text-muted-foreground mb-4">Requests you sent that have been accepted</p>
+              <p className="text-[13px] text-muted-foreground mb-4">Requests you sent that have been accepted</p>
 
               {requestsLoading && (
-                <div className="text-[12px] text-muted-foreground py-4 text-center">Loading…</div>
+                <div className="text-[13px] text-muted-foreground py-4 text-center">Loading…</div>
               )}
               {!requestsLoading && requestsError && (
-                <div className="text-[12px] text-red-700 py-4 text-center">Failed to load: {requestsError}</div>
+                <div className="text-[13px] text-red-700 py-4 text-center">Failed to load: {requestsError}</div>
               )}
               {!requestsLoading && !requestsError && (() => {
                 const accepted = requests.filter((r) => r.status === "accepted" || r.status === "completed");
                 if (accepted.length === 0) {
                   return (
-                    <div className="text-[12px] text-muted-foreground py-4 text-center">
+                    <div className="text-[13px] text-muted-foreground py-4 text-center">
                       Nothing accepted yet.
                     </div>
                   );
                 }
                 return (
                   <div className="space-y-2">
-                    {accepted.map((req) => {
-                      const canConfirmReceipt = actingFacilityId === req.requesting_facility_id;
-                      const busy = actionPendingId === req.id;
-                      return (
-                        <div
-                          key={req.id}
-                          className={`rounded-lg border p-3 ${selectedRequestId === req.id ? "border-primary" : "border-border"}`}
-                        >
-                          <div className="flex items-center justify-between mb-1.5">
-                            <div className="text-[13px] font-semibold text-foreground">
-                              {req.supplying_facility_name}
-                            </div>
-                            <BloodTypeBadge type={req.blood_type} size="sm" />
-                          </div>
-                          <div className="text-[11px] text-muted-foreground mb-2">
-                            {req.quantity} units · {EMERGENCY_TYPE_LABELS[req.emergency_type]}
-                          </div>
-                          <button
-                            onClick={() => setSelectedRequestId(req.id)}
-                            className={`block text-[11px] font-semibold mb-2 hover:underline ${selectedRequestId === req.id ? "text-primary" : "text-muted-foreground"}`}
-                          >
-                            {selectedRequestId === req.id ? "Viewing chat" : "Open chat"}
-                          </button>
-
-                          {req.status === "completed" ? (
-                            <span className="flex items-center gap-1 text-[11px] font-semibold text-status-safe-text">
-                              <CheckCircle size={12} /> Completed
-                            </span>
-                          ) : !req.supplier_confirmed_at ? (
-                            <span className="text-[11px] text-muted-foreground">
-                              Waiting for supplier to confirm release
-                            </span>
-                          ) : canConfirmReceipt ? (
-                            <button
-                              onClick={() => performRequestAction(req.id, "confirm-receipt")}
-                              disabled={busy}
-                              className="w-full h-7 bg-primary text-white text-[11px] font-semibold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
-                            >
-                              {busy ? "Confirming…" : "Confirm Receipt"}
-                            </button>
-                          ) : (
-                            <span className="text-[11px] text-muted-foreground">
-                              Switch to the requesting facility above to confirm receipt
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
+                    {accepted.map((req) => (
+                      <AcceptedRequestCard
+                        key={req.id}
+                        req={req}
+                        canConfirmReceipt={actingFacilityId === req.requesting_facility_id}
+                        busy={actionPendingId === req.id}
+                        isChatSelected={selectedRequestId === req.id}
+                        onOpenChat={() => setSelectedRequestId(req.id)}
+                        onConfirmReceipt={() => performRequestAction(req.id, "confirm-receipt")}
+                      />
+                    ))}
                   </div>
                 );
               })()}
@@ -861,14 +888,14 @@ export function RequestsScreen({
                   <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold text-foreground">Coordination Chat</h3>
-                      <p className="text-[12px] text-muted-foreground">
+                      <p className="text-[13px] text-muted-foreground">
                         {selectedRequest
                           ? `REQ-${selectedRequest.id} · ${resolveFacilityName(selectedRequest.requesting_facility_id, selectedRequest.requesting_facility_name)} ↔ ${resolveFacilityName(selectedRequest.supplying_facility_id, selectedRequest.supplying_facility_name)} · ${selectedRequest.blood_type} · ${selectedRequest.quantity} units`
                           : "Select a request from the left to view its coordination chat"}
                       </p>
                     </div>
                     {selectedRequestId !== null && (
-                      <div className="flex items-center gap-1.5 text-[12px] font-semibold text-green-700">
+                      <div className="flex items-center gap-1.5 text-[13px] font-semibold text-green-700">
                         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                         Live
                       </div>
@@ -882,16 +909,16 @@ export function RequestsScreen({
                           <MessageSquare size={22} className="text-muted-foreground" />
                         </div>
                         <h3 className="font-semibold text-foreground mb-1">No request selected</h3>
-                        <p className="text-[13px] text-muted-foreground max-w-xs leading-relaxed">
+                        <p className="text-[14px] text-muted-foreground max-w-xs leading-relaxed">
                           Click "Open chat" on a request in either list to the left.
                         </p>
                       </div>
                     )}
                     {selectedRequestId !== null && messagesLoading && messages.length === 0 && (
-                      <div className="text-center text-[12px] text-muted-foreground py-8">Loading messages…</div>
+                      <div className="text-center text-[13px] text-muted-foreground py-8">Loading messages…</div>
                     )}
                     {selectedRequestId !== null && messagesError && (
-                      <div className="text-center text-[12px] text-red-700 py-2">{messagesError}</div>
+                      <div className="text-center text-[13px] text-red-700 py-2">{messagesError}</div>
                     )}
                     {selectedRequestId !== null && !messagesLoading && messages.length === 0 && !messagesError && (
                       <div className="h-full flex flex-col items-center justify-center text-center px-8">
@@ -899,7 +926,7 @@ export function RequestsScreen({
                           <MessageSquare size={22} className="text-primary" />
                         </div>
                         <h3 className="font-semibold text-foreground mb-1">No messages yet</h3>
-                        <p className="text-[13px] text-muted-foreground max-w-xs leading-relaxed">
+                        <p className="text-[14px] text-muted-foreground max-w-xs leading-relaxed">
                           Say hello below to get coordination started with the other facility.
                         </p>
                       </div>
@@ -909,14 +936,14 @@ export function RequestsScreen({
                       const time = new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
                       return (
                         <div key={msg.id} className={`flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
-                          <div className={`text-[11px] font-semibold mb-1 ${isOwn ? "text-primary" : "text-muted-foreground"}`}>
+                          <div className={`text-[12px] font-semibold mb-1 ${isOwn ? "text-primary" : "text-muted-foreground"}`}>
                             {msg.sender_facility_name} · {time}
                           </div>
                           <div
-                            className={`max-w-[80%] px-4 py-3 rounded-2xl text-[13px] leading-relaxed ${
+                            className={`max-w-[80%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed ${
                               isOwn
                                 ? "bg-primary text-white rounded-br-md"
-                                : "bg-secondary text-foreground rounded-bl-md"
+                                : "bg-gray-200 text-foreground rounded-bl-md"
                             }`}
                           >
                             {msg.message}
@@ -949,7 +976,7 @@ export function RequestsScreen({
                           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                           placeholder={placeholder}
                           disabled={!canSend || sendingMessage}
-                          className="flex-1 h-9 px-3 text-[13px] border border-border rounded-lg bg-[#F9FAFB] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary disabled:opacity-60"
+                          className="flex-1 h-9 px-3 text-[14px] border border-border rounded-lg bg-[#F9FAFB] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary disabled:opacity-60"
                         />
                         <button
                           onClick={sendMessage}
@@ -973,43 +1000,43 @@ export function RequestsScreen({
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-foreground">Outgoing Requests</h3>
-              <p className="text-[13px] text-muted-foreground mt-0.5">
+              <p className="text-[14px] text-muted-foreground mt-0.5">
                 Immediate-use requests shown first, then by submission time — accepted requests aren't reshuffled
               </p>
             </div>
-            <span className="text-[12px] font-semibold text-muted-foreground bg-secondary px-3 py-1 rounded-full border border-border">
+            <span className="text-[13px] font-semibold text-muted-foreground bg-secondary px-3 py-1 rounded-full border border-border">
               {pendingOnly.length} pending
             </span>
           </div>
 
           {actionError && (
-            <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <div className="text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               {actionError}
             </div>
           )}
 
           {requestsLoading && (
-            <div className="bg-white border border-border rounded-xl p-10 text-center text-[13px] text-muted-foreground">
+            <div className="bg-white border border-border rounded-xl p-10 text-center text-[14px] text-muted-foreground">
               Loading requests…
             </div>
           )}
           {!requestsLoading && requestsError && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center text-[13px] text-red-700">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center text-[14px] text-red-700">
               Failed to load requests: {requestsError}
             </div>
           )}
           {!requestsLoading && !requestsError && pendingOnly.length === 0 && (
-            <div className="bg-white border border-border rounded-xl p-10 text-center text-[13px] text-muted-foreground">
+            <div className="bg-white border border-border rounded-xl p-10 text-center text-[14px] text-muted-foreground">
               No pending requests. Send one from the Emergency Sourcing tab.
             </div>
           )}
           {!requestsLoading && !requestsError && pendingOnly.length > 0 && (
             <div className="bg-white border border-border rounded-xl overflow-hidden">
-              <table className="w-full text-[13px]">
+              <table className="w-full text-[14px]">
                 <thead>
                   <tr className="border-b border-border bg-[#F8F9FB]">
                     {["Request ID", "Supplying Facility", "Blood Type", "Qty", "Reason", "Submitted", "Status", ""].map((h) => (
-                      <th key={h} className="text-left py-3 px-4 text-[11px] font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                      <th key={h} className="text-left py-3 px-4 text-[12px] font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap">
                         {h}
                       </th>
                     ))}
@@ -1030,7 +1057,7 @@ export function RequestsScreen({
                       return (
                         <tr key={req.id} className="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
                           <td className="py-3 px-4">
-                            <span className="font-mono text-[12px] text-muted-foreground">REQ-{req.id}</span>
+                            <span className="font-mono text-[13px] text-muted-foreground">REQ-{req.id}</span>
                           </td>
                           <td className="py-3 px-4 font-medium text-foreground">{req.supplying_facility_name}</td>
                           <td className="py-3 px-4">
@@ -1038,13 +1065,13 @@ export function RequestsScreen({
                           </td>
                           <td className="py-3 px-4 font-semibold text-foreground tabular-nums">{req.quantity}</td>
                           <td className="py-3 px-4">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${reasonStyle}`}>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-semibold border ${reasonStyle}`}>
                               {EMERGENCY_TYPE_LABELS[req.emergency_type]}
                             </span>
                           </td>
-                          <td className="py-3 px-4 font-mono text-[12px] text-muted-foreground">{submittedTime}</td>
+                          <td className="py-3 px-4 font-mono text-[13px] text-muted-foreground">{submittedTime}</td>
                           <td className="py-3 px-4">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-status-watch-tint text-status-watch-text border border-status-watch-border">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[12px] font-semibold bg-status-watch-tint text-status-watch-text border border-status-watch-border">
                               <Clock size={11} /> Awaiting response
                             </span>
                           </td>
@@ -1052,7 +1079,7 @@ export function RequestsScreen({
                             <button
                               onClick={() => setCancelConfirmId(req.id)}
                               disabled={actionPendingId === req.id}
-                              className="h-7 px-3 bg-white border border-border text-[11px] font-semibold text-status-critical-text rounded-lg hover:bg-status-critical-tint transition-colors disabled:opacity-60"
+                              className="h-7 px-3 bg-white border border-border text-[12px] font-semibold text-status-critical-text rounded-lg hover:bg-status-critical-tint transition-colors disabled:opacity-60"
                             >
                               Cancel Request
                             </button>
@@ -1073,7 +1100,7 @@ export function RequestsScreen({
         return (
           <Modal title="Cancel Request" onClose={() => setCancelConfirmId(null)}>
             <div className="space-y-4">
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-[14px] text-muted-foreground">
                 Cancel the {req.quantity}-unit {req.blood_type} request to {req.supplying_facility_name}?
                 This can't be undone — you'll need to submit a new request if you still need this blood type.
               </p>

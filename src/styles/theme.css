@@ -1,7 +1,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --font-size: 15px;
+  --font-size: 16px;
   --background: #FAF9F7;
   --foreground: #1C1917;
   --card: #ffffff;
@@ -22,6 +22,14 @@
   --role-accent-hover: #A8264C;
   --role-accent-tint: #FBEAEE;
   --role-accent-rgb: 140, 27, 58;
+  /* A card/panel sitting on --role-accent-tint (e.g. the Dashboard "unlock
+     your real forecast" panel) needs its own border — --role-accent itself
+     is too dark against white text, and --role-accent-tint against itself
+     is a 1:1 contrast bug. Blended 66% of the way from the tint toward
+     --role-accent, same ratio used for the --status-*-border and
+     --info-border darkening below, so every tinted-panel border in the app
+     clears ~3.2:1 by the same rule rather than a one-off value. */
+  --role-accent-border: #B26177;
 
   --primary: var(--role-accent);
   --primary-hover: var(--role-accent-hover);
@@ -97,15 +105,21 @@
   --status-safe: #0F766E;
   --status-safe-text: #115E59;
   --status-safe-tint: #E6F5F3;
-  --status-safe-border: #BFE1DC;
+  /* Borders below are blended 66% of the way from the original light
+     tint-matched border toward that status's own --*-text color, measured
+     via WCAG relative-luminance contrast against the paired tint (not the
+     page background — that's what a border actually sits on in every real
+     usage here). The original values measured ~1.25-1.34:1 against their
+     own tint — effectively invisible; these clear ~3.2-3.7:1. */
+  --status-safe-border: #4C8B86;
   --status-watch: #B8860B;
   --status-watch-text: #7C5C08;
   --status-watch-tint: #FAF1DA;
-  --status-watch-border: #E4D19E;
+  --status-watch-border: #9F843B;
   --status-critical: #BD4024;
   --status-critical-text: #96331D;
   --status-critical-tint: #FCEEE7;
-  --status-critical-border: #F0CBB8;
+  --status-critical-border: #B56752;
 
   /* Secondary accent — "informational, not a status" (blood-type
      compatibility suggestions, reason-for-request tags, simulation
@@ -115,7 +129,9 @@
   --info: #1D4ED8;
   --info-text: #1E40AF;
   --info-tint: #E9F1FB;
-  --info-border: #C3D5F2;
+  /* Same 66%-toward-text blend as the status borders above — was ~1.31:1
+     against --info-tint, now ~4:1. */
+  --info-border: #5673C6;
 
   /* Elevation — kept deliberately soft (low opacity, tight blur) so it reads
      as a slight lift off the page rather than a drawn-on drop shadow. Button
@@ -144,6 +160,7 @@
   --role-accent-hover: #2C4F7C;
   --role-accent-tint: #E7ECF1;
   --role-accent-rgb: 30, 58, 95;
+  --role-accent-border: #6E8199;
 }
 
 .dark {
@@ -194,6 +211,7 @@
   --color-primary-hover: var(--primary-hover);
   --color-primary-tint: var(--primary-tint);
   --color-primary-foreground: var(--primary-foreground);
+  --color-role-accent-border: var(--role-accent-border);
   --color-status-safe: var(--status-safe);
   --color-status-safe-text: var(--status-safe-text);
   --color-status-safe-tint: var(--status-safe-tint);
@@ -261,10 +279,16 @@
 
   body {
     @apply bg-background text-foreground;
-    /* Baseline body weight bumped from regular to medium for legibility —
-       anything already using font-semibold/font-bold (most headers, all
-       buttons) stays clearly distinct above this. */
-    font-weight: 500;
+    /* Baseline body weight, bumped twice now: regular->medium, then
+       medium->semibold (500->600) for the same legibility reason —
+       Plus Jakarta Sans only ships 400/500/600/700 as static weights (see
+       fonts.css), so 600 is the next real step, not an arbitrary value.
+       Text that already asks for font-semibold/font-bold explicitly
+       (~230 spots — most headers, all buttons, most emphasized labels)
+       matches this exactly or exceeds it, so the "important vs. plain"
+       distinction still holds; it's carried by those explicit classes, not
+       by this base rule, so raising the floor doesn't erase it. */
+    font-weight: 600;
   }
 
   /**
@@ -274,6 +298,11 @@
 
   html {
     font-size: var(--font-size);
+    /* Reserve the scrollbar's width permanently, whether or not the current
+       page actually needs to scroll — otherwise every navigation that
+       toggles between a tall and a short page shifts all the content
+       sideways by the scrollbar's width. */
+    scrollbar-gutter: stable;
   }
 
   h1 {
@@ -346,4 +375,44 @@
   .bg-white.border.border-border.rounded-xl {
     box-shadow: var(--shadow-card);
   }
+}
+
+/* Restrained, one-shot motion — each animation plays exactly once per real
+   event (a value changing, an action succeeding, a notification arriving)
+   and settles; nothing here loops or repeats, since a healthcare tool's
+   motion should read as feedback, not decoration. Kept short (150-300ms)
+   except the bell pulse, which is an ambient attention cue rather than a
+   direct response to a click, so it gets a touch more room to register. */
+
+@keyframes value-flash-ring {
+  from { box-shadow: 0 0 0 3px var(--flash-ring-color, rgba(28, 25, 23, 0.35)); }
+  to { box-shadow: 0 0 0 3px transparent; }
+}
+.animate-value-flash-ring {
+  animation: value-flash-ring 280ms ease-out;
+}
+
+@keyframes value-flash-bg {
+  from { background-color: var(--role-accent-tint); }
+  to { background-color: transparent; }
+}
+.animate-value-flash-bg {
+  animation: value-flash-bg 280ms ease-out;
+}
+
+@keyframes success-pop {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-success-pop {
+  animation: success-pop 180ms ease-out;
+}
+
+@keyframes bell-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+.animate-bell-pulse {
+  animation: bell-pulse 450ms ease-in-out;
 }

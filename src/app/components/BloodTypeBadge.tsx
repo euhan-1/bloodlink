@@ -25,9 +25,9 @@ export function StatusDot({ status }: { status: StatusLevel }) {
 // display, from table cells to search-picker buttons, so O-, A+, etc. always
 // read the same way no matter where they appear.
 export const BLOOD_BADGE_SIZES = {
-  sm: "h-6 min-w-[26px] px-1 text-[10.5px]",
-  md: "h-7 min-w-[34px] px-1.5 text-[12px]",
-  lg: "h-9 min-w-[44px] px-2 text-[15px]",
+  sm: "h-6 min-w-[26px] px-1 text-[11.5px]",
+  md: "h-7 min-w-[34px] px-1.5 text-[13px]",
+  lg: "h-9 min-w-[44px] px-2 text-[16px]",
   // "Stamp" scale — the label-system treatment (Inventory group headers,
   // Emergency Sourcing's compatible-alternative badges), not for ordinary
   // inline use.
@@ -57,7 +57,7 @@ export function BloodTypeBadge({ type, size = "md", selected = false, className 
 // shown at label weight (Inventory rows).
 export function DinLabel({ din }: { din: string }) {
   return (
-    <span className="inline-flex items-center font-mono text-[12px] tracking-wider uppercase text-foreground">
+    <span className="inline-flex items-center font-mono text-[13px] tracking-wider uppercase text-foreground">
       {din}
     </span>
   );
@@ -70,7 +70,7 @@ export function DinLabel({ din }: { din: string }) {
 export function DateStamp({ date, status }: { date: string; status: ExpiryStatus }) {
   const style = EXPIRY_STYLES[status];
   return (
-    <span className={`inline-block font-mono text-[12px] font-semibold tracking-tight px-1.5 py-0.5 rounded border ${style.badge}`}>
+    <span className={`inline-block font-mono text-[13px] font-semibold tracking-tight px-1.5 py-0.5 rounded border ${style.badge}`}>
       {date}
     </span>
   );

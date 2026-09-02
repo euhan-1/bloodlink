@@ -95,7 +95,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
           <h1 className="text-4xl font-bold leading-tight mb-6">
             Connected blood supply for modern healthcare
           </h1>
-          <p className="text-white/70 text-[15px] leading-relaxed">
+          <p className="text-white/70 text-[16px] leading-relaxed">
             Real-time inventory management, emergency sourcing, and donor coordination — unified for blood banks and hospitals across the network.
           </p>
         </div>
@@ -139,7 +139,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
 
               <form onSubmit={handleForgotSubmit} className="space-y-4">
                 <div>
-                  <label className="text-[13px] font-semibold text-foreground block mb-1.5">
+                  <label className="text-[14px] font-semibold text-foreground block mb-1.5">
                     Email address
                   </label>
                   <input
@@ -153,7 +153,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
                 </div>
 
                 {forgotError && (
-                  <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                  <div className="text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
                     {forgotError}
                   </div>
                 )}
@@ -172,7 +172,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
                 <button
                   type="button"
                   onClick={() => { setForgotMode(false); setForgotError(null); }}
-                  className="w-full text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+                  className="w-full text-[13px] text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Back to sign in
                 </button>
@@ -186,14 +186,14 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
               </p>
 
               <div className="mb-5">
-                <p className="text-[12px] font-semibold text-muted-foreground mb-1.5">Quick demo login</p>
+                <p className="text-[13px] font-semibold text-muted-foreground mb-1.5">Quick demo login</p>
                 <div className="flex gap-1 bg-secondary rounded-lg p-1">
                   {(Object.keys(DEMO_ACCOUNTS) as DemoAccountType[]).map((type) => (
                     <button
                       key={type}
                       type="button"
                       onClick={() => handleSelectDemo(type)}
-                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-semibold rounded transition-colors ${
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[14px] font-semibold rounded transition-colors ${
                         selectedDemo === type
                           ? "bg-white text-foreground shadow-sm border border-border"
                           : "text-muted-foreground hover:text-foreground"
@@ -208,7 +208,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-[13px] font-semibold text-foreground block mb-1.5">
+                  <label className="text-[14px] font-semibold text-foreground block mb-1.5">
                     Email address
                   </label>
                   <input
@@ -222,11 +222,11 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
                 </div>
                 <div>
                   <div className="flex justify-between mb-1.5">
-                    <label className="text-[13px] font-semibold text-foreground">Password</label>
+                    <label className="text-[14px] font-semibold text-foreground">Password</label>
                     <button
                       type="button"
                       onClick={() => { setForgotMode(true); setError(null); setForgotEmail(email); }}
-                      className="text-[12px] text-primary hover:underline"
+                      className="text-[13px] text-primary hover:underline"
                     >
                       Forgot password?
                     </button>
@@ -242,7 +242,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
                 </div>
 
                 {error && (
-                  <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                  <div className="text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
                     {error}
                   </div>
                 )}
@@ -262,12 +262,12 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
 
               <div className="mt-8 p-4 rounded-lg bg-amber-50 border border-amber-200 flex gap-3">
                 <ShieldCheck size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-[12px] text-amber-800 leading-relaxed">
+                <p className="text-[13px] text-amber-800 leading-relaxed">
                   <strong>Admin-provisioned accounts.</strong> New facilities are onboarded by a BloodLink administrator, who issues a temporary password for first sign-in — there's no self-service registration.
                 </p>
               </div>
 
-              <p className="mt-6 text-center text-[12px] text-muted-foreground">
+              <p className="mt-6 text-center text-[13px] text-muted-foreground">
                 Need access? Contact your BloodLink administrator.
               </p>
             </>
@@ -326,14 +326,14 @@ function ForcePasswordChangeForm({
           : "This account was created with a temporary password. Choose a new one to continue."}
       </p>
       {pendingReset.reason === "self_service" && (
-        <p className="text-[11px] font-mono text-muted-foreground bg-secondary rounded px-2 py-1.5 mb-6 break-all">
+        <p className="text-[12px] font-mono text-muted-foreground bg-secondary rounded px-2 py-1.5 mb-6 break-all">
           reset code (no email provider connected — shown here instead): {pendingReset.resetToken.slice(0, 24)}…
         </p>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="text-[13px] font-semibold text-foreground block mb-1.5">New password</label>
+          <label className="text-[14px] font-semibold text-foreground block mb-1.5">New password</label>
           <input
             type="password"
             required
@@ -344,7 +344,7 @@ function ForcePasswordChangeForm({
           />
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-foreground block mb-1.5">Confirm new password</label>
+          <label className="text-[14px] font-semibold text-foreground block mb-1.5">Confirm new password</label>
           <input
             type="password"
             required
@@ -356,7 +356,7 @@ function ForcePasswordChangeForm({
         </div>
 
         {error && (
-          <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+          <div className="text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
             {error}
           </div>
         )}
@@ -375,7 +375,7 @@ function ForcePasswordChangeForm({
         <button
           type="button"
           onClick={onCancel}
-          className="w-full text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+          className="w-full text-[13px] text-muted-foreground hover:text-foreground transition-colors"
         >
           Back to sign in
         </button>

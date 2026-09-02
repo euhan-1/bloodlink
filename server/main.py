@@ -1841,6 +1841,20 @@ def create_request(body: CreateRequestBody, requesting_facility_id: int = Depend
         ).scalar()
         emergency_type = "restock" if requesting_facility_type == "bloodbank" else body.emergency_type
 
+        # Emergency Sourcing's own search only ever surfaces bloodbank-type
+        # candidates, so a well-behaved client never sends anything else here
+        # — but that's a frontend filter, not a guarantee. A blood bank has
+        # no legitimate reason to target a hospital (or a nonexistent id) as
+        # its supplier, so re-checked fresh from the DB and rejected outright
+        # rather than trusted from the client, same pattern as the
+        # emergency_type restriction just above.
+        if requesting_facility_type == "bloodbank":
+            supplying_facility_type = conn.execute(
+                text("SELECT facility_type FROM facilities WHERE id = :id"), {"id": body.supplying_facility_id}
+            ).scalar()
+            if supplying_facility_type != "bloodbank":
+                raise HTTPException(status_code=400, detail="a blood bank can only request from another blood bank")
+
         row = conn.execute(
             text(
                 """
@@ -3062,6 +3076,19 @@ def _complete_blast_if_needed(conn, blast_id: int) -> bool:
     a drive-complete message for every donor who was messaged but never
     replied (yes or no) — donors who already said no are correctly left out,
     same as anyone already counted toward the target.
+
+    This runs lazily on every blast read (list_blast_messages, simulate_reply,
+    the dev force-expire tool, get_confirmed_donors) — including the ~4s chat
+    poll — so two calls landing close together is a real case, not
+    hypothetical, same as GET /forecast's forecast_shortage notification. The
+    status flip is one atomic UPDATE ... WHERE status != 'completed' RETURNING
+    id, not a separate SELECT-then-decide followed by a separate write: only
+    the call whose UPDATE actually matches a row (RETURNING yields one) is
+    the one that flipped it and proceeds to fire the notification; a second,
+    near-simultaneous call finds status already 'completed' by the time its
+    own UPDATE runs, matches nothing, and returns False instead of firing a
+    duplicate — same closed-race shape as
+    _check_forecast_shortage_notifications's UPSERT.
     """
     blast = conn.execute(text("SELECT * FROM blasts WHERE id = :id"), {"id": blast_id}).mappings().first()
     if blast is None or blast["status"] == "completed":
@@ -3077,7 +3104,12 @@ def _complete_blast_if_needed(conn, blast_id: int) -> bool:
     if not should_complete:
         return False
 
-    conn.execute(text("UPDATE blasts SET status = 'completed' WHERE id = :id"), {"id": blast_id})
+    flipped = conn.execute(
+        text("UPDATE blasts SET status = 'completed' WHERE id = :id AND status != 'completed' RETURNING id"),
+        {"id": blast_id},
+    ).first()
+    if flipped is None:
+        return False
 
     facility = conn.execute(
         text("SELECT name FROM facilities WHERE id = :id"), {"id": blast["facility_id"]}

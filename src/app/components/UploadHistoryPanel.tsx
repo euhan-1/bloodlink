@@ -53,16 +53,16 @@ function UndoUploadModal({ entry, onClose, onUndone }: {
 
   return (
     <Modal title="Undo This Upload" onClose={onClose}>
-      {loading && <div className="py-8 text-center text-[14px] text-muted-foreground">Checking what can be undone…</div>}
+      {loading && <div className="py-8 text-center text-[15px] text-muted-foreground">Checking what can be undone…</div>}
       {!loading && loadError && (
-        <div className="text-[13px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2">
+        <div className="text-[14px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2">
           {loadError}
         </div>
       )}
 
       {!loading && !loadError && preview && preview.already_undone && !result && (
         <div className="text-center py-3">
-          <p className="text-[13px] text-muted-foreground mb-4">This upload has already been undone.</p>
+          <p className="text-[14px] text-muted-foreground mb-4">This upload has already been undone.</p>
           <button onClick={onClose} className="w-full h-10 bg-primary text-white text-sm font-bold rounded-md hover:bg-primary-hover transition-colors">
             Close
           </button>
@@ -71,23 +71,23 @@ function UndoUploadModal({ entry, onClose, onUndone }: {
 
       {!loading && !loadError && preview && !preview.already_undone && !result && (
         <div className="space-y-4">
-          <p className="text-[13px] text-muted-foreground">
+          <p className="text-[14px] text-muted-foreground">
             {entry.filename ?? "This upload"} — uploaded{" "}
             {new Date(entry.uploaded_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}.
           </p>
 
           {preview.eligible.length === 0 && preview.blocked.length === 0 && (
-            <div className="text-[13px] text-muted-foreground">There's nothing left from this upload to remove.</div>
+            <div className="text-[14px] text-muted-foreground">There's nothing left from this upload to remove.</div>
           )}
 
           {preview.eligible.length > 0 && (
             <div>
-              <div className="text-[12px] font-bold text-foreground mb-1.5">
+              <div className="text-[13px] font-bold text-foreground mb-1.5">
                 Will remove {preview.eligible.length} record{preview.eligible.length === 1 ? "" : "s"}:
               </div>
               <div className="max-h-40 overflow-y-auto border border-border rounded-lg divide-y divide-border">
                 {preview.eligible.map((row, i) => (
-                  <div key={i} className="px-3 py-1.5 text-[12px] font-mono text-foreground">
+                  <div key={i} className="px-3 py-1.5 text-[13px] font-mono text-foreground">
                     {formatUndoRow(preview.upload_type, row)}
                   </div>
                 ))}
@@ -97,12 +97,12 @@ function UndoUploadModal({ entry, onClose, onUndone }: {
 
           {preview.blocked.length > 0 && (
             <div className="rounded-lg border border-status-watch-border bg-status-watch-tint px-3 py-2.5">
-              <div className="flex items-center gap-1.5 text-[12px] font-bold text-status-watch-text mb-1.5">
+              <div className="flex items-center gap-1.5 text-[13px] font-bold text-status-watch-text mb-1.5">
                 <AlertTriangle size={13} /> {preview.blocked.length} record{preview.blocked.length === 1 ? "" : "s"} can't be removed
               </div>
               <div className="space-y-1">
                 {preview.blocked.map((row, i) => (
-                  <div key={i} className="text-[12px] text-status-watch-text">
+                  <div key={i} className="text-[13px] text-status-watch-text">
                     {formatUndoRow(preview.upload_type, row)} — {row.reason}
                   </div>
                 ))}
@@ -111,7 +111,7 @@ function UndoUploadModal({ entry, onClose, onUndone }: {
           )}
 
           {applyError && (
-            <div className="text-[12px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2">
+            <div className="text-[13px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2">
               {applyError}
             </div>
           )}
@@ -149,7 +149,7 @@ function UndoUploadModal({ entry, onClose, onUndone }: {
             {result.removed_count} record{result.removed_count === 1 ? "" : "s"} removed
           </div>
           {result.blocked.length > 0 && (
-            <p className="text-[13px] text-status-watch-text mb-3">
+            <p className="text-[14px] text-status-watch-text mb-3">
               {result.blocked.length} record{result.blocked.length === 1 ? "" : "s"} couldn't be removed — see reasons above.
             </p>
           )}
@@ -209,17 +209,17 @@ export function UploadHistoryPanel({ uploadType, refreshKey, onUndone }: { uploa
           <div className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center">
             <History size={14} className="text-muted-foreground" />
           </div>
-          <h3 className="font-semibold text-foreground text-[15px]">Upload History</h3>
+          <h3 className="font-semibold text-foreground text-[16px]">Upload History</h3>
         </div>
-        <button onClick={load} className="text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={load} className="text-[12px] font-semibold text-muted-foreground hover:text-foreground transition-colors">
           Refresh
         </button>
       </div>
 
-      {loading && <div className="py-6 text-center text-[13px] text-muted-foreground">Loading…</div>}
-      {!loading && error && <div className="py-4 text-center text-[13px] text-red-700">Failed to load: {error}</div>}
+      {loading && <div className="py-6 text-center text-[14px] text-muted-foreground">Loading…</div>}
+      {!loading && error && <div className="py-4 text-center text-[14px] text-red-700">Failed to load: {error}</div>}
       {!loading && !error && entries.length === 0 && (
-        <div className="py-6 text-center text-[13px] text-muted-foreground">No uploads yet.</div>
+        <div className="py-6 text-center text-[14px] text-muted-foreground">No uploads yet.</div>
       )}
       {!loading && !error && entries.length > 0 && (
         <div className="space-y-2">
@@ -234,23 +234,23 @@ export function UploadHistoryPanel({ uploadType, refreshKey, onUndone }: { uploa
                   className="w-full px-3 py-2.5 text-left hover:bg-secondary transition-colors"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <div className="text-[12.5px] font-semibold text-foreground truncate min-w-0">
+                    <div className="text-[13.5px] font-semibold text-foreground truncate min-w-0">
                       {entry.filename ?? "Untitled upload"}
                     </div>
                     <ChevronDown size={14} className={`text-muted-foreground transition-transform shrink-0 ${expanded ? "rotate-180" : ""}`} />
                   </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                  <div className="text-[12px] text-muted-foreground mt-0.5 truncate">
                     {new Date(entry.uploaded_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
                     {entry.uploaded_by_email && ` · ${entry.uploaded_by_email}`}
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
                     {isUndone && (
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap bg-secondary text-muted-foreground border-border">
+                      <span className="text-[12px] font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap bg-secondary text-muted-foreground border-border">
                         Undone {new Date(entry.undone_at!).toLocaleDateString([], { dateStyle: "medium" })}
                       </span>
                     )}
                     <span
-                      className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap ${
+                      className={`text-[12px] font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap ${
                         hasErrors
                           ? "bg-status-watch-tint text-status-watch-text border-status-watch-border"
                           : "bg-status-safe-tint text-status-safe-text border-status-safe-border"
@@ -266,21 +266,21 @@ export function UploadHistoryPanel({ uploadType, refreshKey, onUndone }: { uploa
                       <button
                         onClick={() => handleDownload(entry)}
                         disabled={downloadingId === entry.id}
-                        className="flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:underline disabled:opacity-60"
+                        className="flex items-center gap-1.5 text-[12px] font-semibold text-primary hover:underline disabled:opacity-60"
                       >
                         <Download size={12} /> {downloadingId === entry.id ? "Downloading…" : "Download original file"}
                       </button>
                     ) : (
-                      <div className="text-[11px] text-muted-foreground">
+                      <div className="text-[12px] text-muted-foreground">
                         The original file isn't stored for this upload type.
                       </div>
                     )}
-                    {downloadError && <div className="text-[11px] text-red-700">{downloadError}</div>}
+                    {downloadError && <div className="text-[12px] text-red-700">{downloadError}</div>}
                     {entry.error_details.length > 0 && (
                       <div className="space-y-1">
-                        <div className="text-[11px] font-semibold text-foreground">Rows that failed:</div>
+                        <div className="text-[12px] font-semibold text-foreground">Rows that failed:</div>
                         {entry.error_details.map((e, i) => (
-                          <div key={i} className="text-[11px] text-red-700">
+                          <div key={i} className="text-[12px] text-red-700">
                             Row {e.row}: {e.reason}
                           </div>
                         ))}
@@ -289,7 +289,7 @@ export function UploadHistoryPanel({ uploadType, refreshKey, onUndone }: { uploa
                     {!isUndone && (
                       <button
                         onClick={() => setUndoEntry(entry)}
-                        className="flex items-center gap-1.5 text-[11px] font-semibold text-status-critical-text hover:underline"
+                        className="flex items-center gap-1.5 text-[12px] font-semibold text-status-critical-text hover:underline"
                       >
                         <RotateCcw size={12} /> Undo this upload
                       </button>

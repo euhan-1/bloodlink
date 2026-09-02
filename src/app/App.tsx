@@ -46,11 +46,11 @@ function TopNav({
 
   return (
     <header className="sticky top-0 z-[1100] bg-white border-b border-border">
-      <div className="max-w-screen-xl mx-auto px-6 flex items-center gap-8 h-14">
+      <div className="max-w-screen-2xl mx-auto px-6 flex items-center gap-8 h-14">
         {/* Logo */}
         <div className="flex items-center gap-2.5 shrink-0">
           <BloodDropLogo size={28} />
-          <span className="text-[15px] font-bold tracking-tight text-foreground">
+          <span className="text-[16px] font-bold tracking-tight text-foreground">
             Blood<span className="text-primary">Link</span>
           </span>
         </div>
@@ -61,7 +61,7 @@ function TopNav({
             <button
               key={item.key}
               onClick={() => setScreen(item.key)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded text-[13px] font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded text-[14px] font-medium transition-colors ${
                 screen === item.key
                   ? "bg-accent text-primary"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary"
@@ -107,7 +107,7 @@ function DevFacilityBanner() {
   }
 
   return (
-    <div className="bg-amber-50 border-b border-amber-300 px-6 py-2 flex items-center gap-3 text-[12px] flex-wrap">
+    <div className="bg-amber-50 border-b border-amber-300 px-6 py-2 flex items-center gap-3 text-[13px] flex-wrap">
       <span className="flex items-center gap-1.5 font-bold text-amber-800 uppercase tracking-wide shrink-0">
         <AlertTriangle size={14} /> Dev Mode
       </span>
@@ -115,7 +115,7 @@ function DevFacilityBanner() {
       <select
         value={selected ?? ""}
         onChange={(e) => handleChange(Number(e.target.value))}
-        className="h-7 px-2 rounded-md border border-amber-300 bg-white text-[12px] font-semibold text-foreground"
+        className="h-7 px-2 rounded-md border border-amber-300 bg-white text-[13px] font-semibold text-foreground"
       >
         <option value="" disabled>
           Select a facility…

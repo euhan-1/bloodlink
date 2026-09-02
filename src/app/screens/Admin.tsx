@@ -46,7 +46,7 @@ function DeleteFacilityModal({ facility, onClose, onDeleted }: {
       <div className="space-y-4">
         <div className="rounded-lg border border-status-critical-border bg-status-critical-tint px-3 py-2.5 flex gap-2.5">
           <AlertTriangle size={16} className="text-status-critical-text shrink-0 mt-0.5" />
-          <p className="text-[13px] text-status-critical-text leading-snug">
+          <p className="text-[14px] text-status-critical-text leading-snug">
             This permanently deletes <b>{facility.name}</b> — including its login account(s) — and cannot be undone.
             It only succeeds if no other real data (blood units, donors, requests, uploads, notifications, blasts)
             still references it.
@@ -54,7 +54,7 @@ function DeleteFacilityModal({ facility, onClose, onDeleted }: {
         </div>
 
         <div>
-          <label className="text-[12px] font-semibold text-foreground block mb-1.5">
+          <label className="text-[13px] font-semibold text-foreground block mb-1.5">
             Type <span className="font-mono font-bold">{facility.name}</span> to confirm
           </label>
           <input
@@ -67,7 +67,7 @@ function DeleteFacilityModal({ facility, onClose, onDeleted }: {
         </div>
 
         {error && (
-          <div className="text-[12.5px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2 leading-snug">
+          <div className="text-[13.5px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2 leading-snug">
             {error}
           </div>
         )}
@@ -180,7 +180,7 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
         <div className="flex items-center gap-2">
           <BloodDropLogo size={24} />
           <span className="font-bold">Blood<span className="text-primary">Link</span></span>
-          <span className="ml-2 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold uppercase tracking-wide">
+          <span className="ml-2 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[12px] font-bold uppercase tracking-wide">
             Admin
           </span>
         </div>
@@ -189,12 +189,12 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
         </div>
       </div>
 
-      <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
         <div className="bg-white border border-border rounded-xl p-5">
           <h3 className="font-semibold text-foreground mb-4">Create Facility Account</h3>
           <form onSubmit={handleCreate} className="grid sm:grid-cols-4 gap-3 items-end">
             <div>
-              <label className="text-[12px] font-semibold text-foreground block mb-1.5">Facility name</label>
+              <label className="text-[13px] font-semibold text-foreground block mb-1.5">Facility name</label>
               <input
                 required
                 value={name}
@@ -203,7 +203,7 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
               />
             </div>
             <div>
-              <label className="text-[12px] font-semibold text-foreground block mb-1.5">Type</label>
+              <label className="text-[13px] font-semibold text-foreground block mb-1.5">Type</label>
               <select
                 value={facilityType}
                 onChange={(e) => setFacilityType(e.target.value as "hospital" | "bloodbank")}
@@ -214,7 +214,7 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
               </select>
             </div>
             <div>
-              <label className="text-[12px] font-semibold text-foreground block mb-1.5">Official email</label>
+              <label className="text-[13px] font-semibold text-foreground block mb-1.5">Official email</label>
               <input
                 required
                 type="email"
@@ -226,19 +226,19 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
             <button
               type="submit"
               disabled={creating}
-              className="h-9 bg-primary text-white rounded-md text-[13px] font-semibold hover:bg-primary-hover transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
+              className="h-9 bg-primary text-white rounded-md text-[14px] font-semibold hover:bg-primary-hover transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
             >
               <Plus size={15} /> {creating ? "Creating…" : "Create Account"}
             </button>
           </form>
 
           {createError && (
-            <div className="mt-3 text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+            <div className="mt-3 text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
               {createError}
             </div>
           )}
           {createResult && (
-            <div className="mt-3 text-[12px] bg-secondary rounded-md px-3 py-2.5 space-y-1">
+            <div className="mt-3 text-[13px] bg-secondary rounded-md px-3 py-2.5 space-y-1">
               <div className="font-semibold text-foreground">
                 {createResult.facility.name} created — {createResult.user.email}
               </div>
@@ -253,29 +253,29 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
         <div className="bg-white border border-border rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border flex items-center justify-between">
             <h3 className="font-semibold text-foreground">Facilities</h3>
-            <span className="text-[12px] text-muted-foreground">{facilities.length} total</span>
+            <span className="text-[13px] text-muted-foreground">{facilities.length} total</span>
           </div>
 
           {loading && (
-            <div className="p-8 text-center text-[13px] text-muted-foreground">Loading…</div>
+            <div className="p-8 text-center text-[14px] text-muted-foreground">Loading…</div>
           )}
           {!loading && loadError && (
-            <div className="p-6 text-center text-[13px] text-red-700">{loadError}</div>
+            <div className="p-6 text-center text-[14px] text-red-700">{loadError}</div>
           )}
           {!loading && !loadError && (
             <>
               {statusError && (
-                <div className="mx-5 mt-4 text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                <div className="mx-5 mt-4 text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
                   {statusError}
                 </div>
               )}
               {resetError && (
-                <div className="mx-5 mt-4 text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                <div className="mx-5 mt-4 text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
                   {resetError}
                 </div>
               )}
               {resetResult && (
-                <div className="mx-5 mt-4 text-[12px] bg-secondary rounded-md px-3 py-2.5 flex items-start justify-between gap-3">
+                <div className="mx-5 mt-4 text-[13px] bg-secondary rounded-md px-3 py-2.5 flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <div className="font-semibold text-foreground">New password issued for {resetResult.email}</div>
                     <div className="text-muted-foreground">
@@ -291,11 +291,11 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
                   </button>
                 </div>
               )}
-              <table className="w-full text-[13px]">
+              <table className="w-full text-[14px]">
                 <thead>
                   <tr className="border-b border-border bg-[#F8F9FB]">
                     {["Facility", "Type", "Account(s)", "Profile", "Status", ""].map((h) => (
-                      <th key={h} className="text-left py-3 px-4 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                      <th key={h} className="text-left py-3 px-4 text-[12px] font-bold uppercase tracking-wide text-muted-foreground">
                         {h}
                       </th>
                     ))}
@@ -312,17 +312,17 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
                         ) : (
                           f.accounts.map((a) => (
                             <div key={a.id} className="flex items-center gap-1.5 py-0.5">
-                              <div className="font-mono text-[12px] text-foreground">
+                              <div className="font-mono text-[13px] text-foreground">
                                 {a.email}
                                 {a.must_change_password && (
-                                  <span className="ml-1.5 font-sans text-[11px] text-status-watch-text">(pending first login)</span>
+                                  <span className="ml-1.5 font-sans text-[12px] text-status-watch-text">(pending first login)</span>
                                 )}
                               </div>
                               <button
                                 onClick={() => handleResetPassword(a)}
                                 disabled={resetBusyId === a.id}
                                 title="Reset password"
-                                className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold text-muted-foreground hover:text-primary hover:bg-primary-tint transition-colors disabled:opacity-60"
+                                className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-[12px] font-semibold text-muted-foreground hover:text-primary hover:bg-primary-tint transition-colors disabled:opacity-60"
                               >
                                 <KeyRound size={11} /> {resetBusyId === a.id ? "…" : "Reset"}
                               </button>
@@ -332,7 +332,7 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
                       </td>
                       <td className="py-3 px-4">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-semibold border ${
                             f.profile_completed ? STATUS_STYLES.safe.badge : STATUS_STYLES.watch.badge
                           }`}
                         >
@@ -341,7 +341,7 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
                       </td>
                       <td className="py-3 px-4">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-semibold border ${
                             f.is_active ? STATUS_STYLES.safe.badge : STATUS_STYLES.critical.badge
                           }`}
                         >
@@ -353,7 +353,7 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
                           <button
                             onClick={() => handleToggleActive(f)}
                             disabled={statusBusyId === f.id}
-                            className={`h-7 px-3 rounded-md text-[12px] font-semibold border transition-colors disabled:opacity-60 ${
+                            className={`h-7 px-3 rounded-md text-[13px] font-semibold border transition-colors disabled:opacity-60 ${
                               f.is_active
                                 ? "border-status-critical-border text-status-critical-text hover:bg-status-critical-tint"
                                 : "border-status-safe-border text-status-safe-text hover:bg-status-safe-tint"

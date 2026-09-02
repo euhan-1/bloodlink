@@ -213,7 +213,7 @@ export function ChatScreen() {
   const isCompleted = blastSummary?.status === "completed";
 
   return (
-    <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
+    <div className="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
       <div className="grid lg:grid-cols-5 gap-5">
         {/* Compose panel */}
         <div className="lg:col-span-2 space-y-4">
@@ -225,7 +225,7 @@ export function ChatScreen() {
               </div>
               <div>
                 <h3 className="font-semibold text-foreground">Donor Roster</h3>
-                <p className="text-[12px] text-muted-foreground">
+                <p className="text-[13px] text-muted-foreground">
                   {donorCount === null ? "Loading…" : `${donorCount} donors on file`}
                 </p>
               </div>
@@ -240,20 +240,20 @@ export function ChatScreen() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="w-full h-9 bg-white border border-border rounded-lg text-[12px] font-semibold text-foreground hover:bg-secondary transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
+              className="w-full h-9 bg-white border border-border rounded-lg text-[13px] font-semibold text-foreground hover:bg-secondary transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
             >
               <Upload size={14} /> {uploading ? "Uploading…" : "Upload Donor CSV"}
             </button>
-            <p className="text-[11px] text-muted-foreground mt-1.5">
+            <p className="text-[12px] text-muted-foreground mt-1.5">
               Columns: name, blood_type, phone. Re-uploading updates existing donors by phone number.
             </p>
             {uploadError && (
-              <div className="mt-2 text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-2">
+              <div className="mt-2 text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-2">
                 {uploadError}
               </div>
             )}
             {uploadResult && (
-              <div className="mt-2 text-[11px] bg-secondary rounded-lg px-2.5 py-2 space-y-1">
+              <div className="mt-2 text-[12px] bg-secondary rounded-lg px-2.5 py-2 space-y-1">
                 <div className="font-semibold text-foreground">{uploadResult.rows_processed} donors processed</div>
                 {uploadResult.errors.map((e, i) => (
                   <div key={i} className="text-red-700">
@@ -274,19 +274,19 @@ export function ChatScreen() {
               </div>
               <div>
                 <h3 className="font-semibold text-foreground">SMS Donor Blast</h3>
-                <p className="text-[12px] text-muted-foreground">Simulated — no real provider connected</p>
+                <p className="text-[13px] text-muted-foreground">Simulated — no real provider connected</p>
               </div>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="text-[12px] font-semibold text-foreground block mb-2">Blood Type</label>
+                <label className="text-[13px] font-semibold text-foreground block mb-2">Blood Type</label>
                 <div className="grid grid-cols-4 gap-1.5">
                   {bloodTypes.map((bt) => (
                     <button
                       key={bt}
                       onClick={() => setSelectedType(bt)}
-                      className={`py-2 text-[13px] font-display font-bold rounded-lg border transition-colors ${
+                      className={`py-2 text-[14px] font-display font-bold rounded-lg border transition-colors ${
                         selectedType === bt
                           ? "bg-primary text-white border-primary"
                           : "bg-primary-tint text-primary border-transparent hover:border-primary/40"
@@ -300,7 +300,7 @@ export function ChatScreen() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[12px] font-semibold text-foreground block mb-1.5">
+                  <label className="text-[13px] font-semibold text-foreground block mb-1.5">
                     Donors needed
                   </label>
                   <div className="flex items-center gap-2">
@@ -320,7 +320,7 @@ export function ChatScreen() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[12px] font-semibold text-foreground block mb-1.5">
+                  <label className="text-[13px] font-semibold text-foreground block mb-1.5">
                     Time limit (hrs)
                   </label>
                   <div className="flex items-center gap-2">
@@ -342,7 +342,7 @@ export function ChatScreen() {
               </div>
 
               {createError && (
-                <div className="text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-2">
+                <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-2">
                   {createError}
                 </div>
               )}
@@ -350,7 +350,7 @@ export function ChatScreen() {
               <button
                 onClick={handleCreateBlast}
                 disabled={creatingBlast}
-                className="w-full h-10 bg-primary text-white text-[13px] font-semibold rounded-lg hover:bg-primary-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                className="w-full h-10 bg-primary text-white text-[14px] font-semibold rounded-lg hover:bg-primary-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 <Send size={15} />
                 {creatingBlast ? "Sending…" : "Send Blast"}
@@ -361,20 +361,20 @@ export function ChatScreen() {
           {/* Dev-only reply/expiry simulation tools */}
           {isDevMode && activeBlastId !== null && (
             <div className="bg-amber-50 border border-amber-300 rounded-xl p-5 space-y-3">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-800 uppercase tracking-wide">
+              <div className="flex items-center gap-1.5 text-[12px] font-bold text-amber-800 uppercase tracking-wide">
                 <AlertTriangle size={14} /> Dev Tools — Simulate Donor Activity
               </div>
-              <p className="text-[11px] text-amber-700 leading-snug">
+              <p className="text-[12px] text-amber-700 leading-snug">
                 Stands in for a real donor's SMS reply, since no provider is connected. Only works because this
                 server has ALLOW_DEV_TEST_TOOLS enabled.
               </p>
 
               <div>
-                <label className="text-[11px] font-semibold text-amber-800 block mb-1">Donor</label>
+                <label className="text-[12px] font-semibold text-amber-800 block mb-1">Donor</label>
                 <select
                   value={simDonorId}
                   onChange={(e) => setSimDonorId(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full h-8 px-2 rounded-md border border-amber-300 bg-white text-[12px] text-foreground"
+                  className="w-full h-8 px-2 rounded-md border border-amber-300 bg-white text-[13px] text-foreground"
                 >
                   <option value="">Select a messaged donor…</option>
                   {messagedDonors.map((d) => (
@@ -387,13 +387,13 @@ export function ChatScreen() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] font-semibold text-amber-800 block mb-1">Reply</label>
+                  <label className="text-[12px] font-semibold text-amber-800 block mb-1">Reply</label>
                   <div className="flex gap-1.5">
                     {(["yes", "no"] as const).map((r) => (
                       <button
                         key={r}
                         onClick={() => setSimReply(r)}
-                        className={`flex-1 h-8 text-[12px] font-bold rounded-md border transition-colors ${
+                        className={`flex-1 h-8 text-[13px] font-bold rounded-md border transition-colors ${
                           simReply === r
                             ? "bg-primary text-white border-primary"
                             : "bg-white text-foreground border-amber-300"
@@ -405,20 +405,20 @@ export function ChatScreen() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[11px] font-semibold text-amber-800 block mb-1">
+                  <label className="text-[12px] font-semibold text-amber-800 block mb-1">
                     Reply time (optional)
                   </label>
                   <input
                     type="datetime-local"
                     value={simTimestamp}
                     onChange={(e) => setSimTimestamp(e.target.value)}
-                    className="w-full h-8 px-2 rounded-md border border-amber-300 bg-white text-[11px] text-foreground"
+                    className="w-full h-8 px-2 rounded-md border border-amber-300 bg-white text-[12px] text-foreground"
                   />
                 </div>
               </div>
 
               {simError && (
-                <div className="text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-2">
+                <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-2">
                   {simError}
                 </div>
               )}
@@ -426,14 +426,14 @@ export function ChatScreen() {
               <button
                 onClick={handleSimulateReply}
                 disabled={simBusy || simDonorId === ""}
-                className="w-full h-8 bg-amber-600 text-white text-[12px] font-semibold rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-60"
+                className="w-full h-8 bg-amber-600 text-white text-[13px] font-semibold rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-60"
               >
                 {simBusy ? "Working…" : "Simulate Reply"}
               </button>
               <button
                 onClick={handleForceExpire}
                 disabled={simBusy}
-                className="w-full h-8 bg-white border border-amber-300 text-amber-800 text-[12px] font-semibold rounded-lg hover:bg-amber-100 transition-colors disabled:opacity-60"
+                className="w-full h-8 bg-white border border-amber-300 text-amber-800 text-[13px] font-semibold rounded-lg hover:bg-amber-100 transition-colors disabled:opacity-60"
               >
                 Force Deadline Into the Past
               </button>
@@ -449,14 +449,14 @@ export function ChatScreen() {
                 <Send size={22} className="text-primary" />
               </div>
               <h3 className="font-semibold text-foreground mb-1">No blast sent yet</h3>
-              <p className="text-[13px] text-muted-foreground max-w-xs leading-relaxed">
+              <p className="text-[14px] text-muted-foreground max-w-xs leading-relaxed">
                 Pick a blood type and donor count on the left, then send to start tracking confirmations here.
               </p>
             </div>
           )}
 
           {blastSummary && (
-            <>
+            <div key={blastSummary.id} className="animate-success-pop space-y-4">
               {/* SIMULATED banner — deliberately the most visually prominent
                   element on this screen, using the exact label text the
                   backend returns, so there's one source of truth for the wording. */}
@@ -464,8 +464,8 @@ export function ChatScreen() {
                 <div className="bg-info-tint border-2 border-info-border rounded-xl px-4 py-3 flex items-center gap-2.5">
                   <MessageSquare size={18} className="text-info-text shrink-0" />
                   <div>
-                    <div className="text-[13px] font-bold text-info-text">{blastMessagesData.label}</div>
-                    <div className="text-[11px] text-info-text">
+                    <div className="text-[14px] font-bold text-info-text">{blastMessagesData.label}</div>
+                    <div className="text-[12px] text-info-text">
                       No real SMS provider is connected — this is a logged simulation only.
                     </div>
                   </div>
@@ -479,23 +479,23 @@ export function ChatScreen() {
                       {blastSummary.blood_type} Donor Drive
                       {isDevMode && <span className="text-muted-foreground font-normal"> · blast #{blastSummary.id}</span>}
                     </h3>
-                    <p className="text-[12px] text-muted-foreground mt-0.5">
+                    <p className="text-[13px] text-muted-foreground mt-0.5">
                       Target {target} donors within {blastSummary.time_limit_hours}h
                     </p>
                   </div>
                   {isCompleted ? (
-                    <span className="flex items-center gap-1 text-[12px] font-semibold bg-status-safe-tint text-status-safe-text px-3 py-1 rounded-full border border-status-safe-border">
+                    <span className="flex items-center gap-1 text-[13px] font-semibold bg-status-safe-tint text-status-safe-text px-3 py-1 rounded-full border border-status-safe-border">
                       <CheckCircle size={13} /> Drive Complete
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-[12px] font-semibold bg-status-watch-tint text-status-watch-text px-3 py-1 rounded-full border border-status-watch-border">
+                    <span className="flex items-center gap-1 text-[13px] font-semibold bg-status-watch-tint text-status-watch-text px-3 py-1 rounded-full border border-status-watch-border">
                       <Clock size={13} /> Active
                     </span>
                   )}
                 </div>
 
                 <div className="px-5 py-3 border-b border-border">
-                  <div className="flex justify-between text-[11px] font-semibold mb-1.5">
+                  <div className="flex justify-between text-[12px] font-semibold mb-1.5">
                     <span className="text-muted-foreground">Confirmation progress</span>
                     <span className="text-status-safe-text">{confirmedCount} of {target} needed</span>
                   </div>
@@ -508,11 +508,11 @@ export function ChatScreen() {
                 </div>
 
                 {detailError && (
-                  <div className="px-5 py-3 text-[12px] text-red-700">Failed to load: {detailError}</div>
+                  <div className="px-5 py-3 text-[13px] text-red-700">Failed to load: {detailError}</div>
                 )}
 
                 {confirmedData && confirmedData.confirmed_donors.length === 0 && (
-                  <div className="px-5 py-8 text-center text-[12px] text-muted-foreground">
+                  <div className="px-5 py-8 text-center text-[13px] text-muted-foreground">
                     No confirmed donors yet.
                   </div>
                 )}
@@ -521,17 +521,17 @@ export function ChatScreen() {
                   <div className="divide-y divide-border">
                     {confirmedData.confirmed_donors.map((donor, i) => (
                       <div key={`${donor.phone}-${i}`} className="px-5 py-3 flex items-center gap-4">
-                        <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded shrink-0">
+                        <span className="text-[11px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded shrink-0">
                           #{i + 1}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-[13px] text-foreground">{donor.name}</div>
-                          <div className="text-[11px] text-muted-foreground font-mono mt-0.5">{donor.phone}</div>
+                          <div className="font-semibold text-[14px] text-foreground">{donor.name}</div>
+                          <div className="text-[12px] text-muted-foreground font-mono mt-0.5">{donor.phone}</div>
                         </div>
-                        <div className="text-[11px] text-muted-foreground font-mono shrink-0">
+                        <div className="text-[12px] text-muted-foreground font-mono shrink-0">
                           {new Date(donor.replied_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </div>
-                        <span className="flex items-center gap-1 text-[11px] font-semibold text-status-safe-text bg-status-safe-tint px-2.5 py-1 rounded-full border border-status-safe-border shrink-0">
+                        <span className="flex items-center gap-1 text-[12px] font-semibold text-status-safe-text bg-status-safe-tint px-2.5 py-1 rounded-full border border-status-safe-border shrink-0">
                           <CheckCircle size={12} /> Confirmed
                         </span>
                       </div>
@@ -545,7 +545,7 @@ export function ChatScreen() {
                 <div className="bg-white border border-border rounded-xl">
                   <div className="px-5 py-4 border-b border-border">
                     <h3 className="font-semibold text-foreground">Simulated Message Log</h3>
-                    <p className="text-[12px] text-muted-foreground mt-0.5">
+                    <p className="text-[13px] text-muted-foreground mt-0.5">
                       {blastMessagesData.messages.length} log entries — every donor messaged, including drive-complete follow-ups
                     </p>
                   </div>
@@ -553,16 +553,16 @@ export function ChatScreen() {
                     {blastMessagesData.messages.map((m, i) => (
                       <div key={i} className="px-5 py-3">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-[12px] text-foreground">{m.donor_name}</span>
-                          <span className="text-[11px] text-muted-foreground font-mono">{m.phone}</span>
+                          <span className="font-semibold text-[13px] text-foreground">{m.donor_name}</span>
+                          <span className="text-[12px] text-muted-foreground font-mono">{m.phone}</span>
                         </div>
-                        <div className="text-[11px] text-muted-foreground leading-relaxed">{m.message_text}</div>
+                        <div className="text-[12px] text-muted-foreground leading-relaxed">{m.message_text}</div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       </div>

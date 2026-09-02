@@ -49,7 +49,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             <CheckCircle size={22} className="text-status-safe" />
           </div>
           <div className="font-display font-bold text-foreground mb-1">Password updated</div>
-          <p className="text-[13px] text-muted-foreground mb-4">Use your new password next time you sign in.</p>
+          <p className="text-[14px] text-muted-foreground mb-4">Use your new password next time you sign in.</p>
           <button
             onClick={onClose}
             className="w-full h-10 bg-primary text-white text-sm font-bold rounded-md hover:bg-primary-hover transition-colors"
@@ -60,7 +60,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-[13px] font-semibold text-foreground block mb-1.5">Current password</label>
+            <label className="text-[14px] font-semibold text-foreground block mb-1.5">Current password</label>
             <input
               type="password"
               required
@@ -71,7 +71,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div>
-            <label className="text-[13px] font-semibold text-foreground block mb-1.5">New password</label>
+            <label className="text-[14px] font-semibold text-foreground block mb-1.5">New password</label>
             <input
               type="password"
               required
@@ -82,7 +82,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div>
-            <label className="text-[13px] font-semibold text-foreground block mb-1.5">Confirm new password</label>
+            <label className="text-[14px] font-semibold text-foreground block mb-1.5">Confirm new password</label>
             <input
               type="password"
               required
@@ -94,7 +94,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
           </div>
 
           {error && (
-            <div className="text-[12px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2">
+            <div className="text-[13px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2">
               {error}
             </div>
           )}
@@ -171,9 +171,9 @@ function EditFacilityProfileModal({ facilityName, onClose, onSaved }: {
 
   return (
     <Modal title="Edit Facility Profile" onClose={onClose} wide>
-      {loading && <div className="py-8 text-center text-[14px] text-muted-foreground">Loading…</div>}
+      {loading && <div className="py-8 text-center text-[15px] text-muted-foreground">Loading…</div>}
       {!loading && loadError && (
-        <div className="text-[13px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2">
+        <div className="text-[14px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2">
           {loadError}
         </div>
       )}
@@ -183,7 +183,7 @@ function EditFacilityProfileModal({ facilityName, onClose, onSaved }: {
             <CheckCircle size={22} className="text-status-safe" />
           </div>
           <div className="font-display font-bold text-foreground mb-1">Profile updated</div>
-          <p className="text-[13px] text-muted-foreground mb-4">{facilityName}'s address, location, and license are saved.</p>
+          <p className="text-[14px] text-muted-foreground mb-4">{facilityName}'s address, location, and license are saved.</p>
           <button
             onClick={onClose}
             className="w-full h-10 bg-primary text-white text-sm font-bold rounded-md hover:bg-primary-hover transition-colors"
@@ -202,7 +202,7 @@ function EditFacilityProfileModal({ facilityName, onClose, onSaved }: {
           />
 
           {submitError && (
-            <div className="text-[12px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2">
+            <div className="text-[13px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2">
               {submitError}
             </div>
           )}
@@ -245,11 +245,25 @@ export function NotificationBell({ onNavigate }: { onNavigate: (n: NotificationI
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [justArrived, setJustArrived] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  // null until the first poll resolves — distinguishes "nothing to compare
+  // against yet" (don't pulse on initial load) from "compared and nothing's
+  // new" (also don't pulse). Only a ID present now that wasn't in the
+  // previous poll's set counts as a real arrival.
+  const knownIdsRef = useRef<Set<number> | null>(null);
 
   function loadNotifications() {
     listNotifications()
-      .then(setNotifications)
+      .then((data) => {
+        setNotifications(data);
+        const ids = new Set(data.map((n) => n.id));
+        if (knownIdsRef.current !== null && data.some((n) => !knownIdsRef.current!.has(n.id))) {
+          setJustArrived(true);
+          setTimeout(() => setJustArrived(false), 450);
+        }
+        knownIdsRef.current = ids;
+      })
       // A failed poll shouldn't surface an error banner on every screen —
       // it'll just quietly retry on the next interval tick.
       .catch(() => {})
@@ -297,9 +311,9 @@ export function NotificationBell({ onNavigate }: { onNavigate: (n: NotificationI
         onClick={() => setOpen((o) => !o)}
         className="relative p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors"
       >
-        <Bell size={19} />
+        <Bell size={19} className={justArrived ? "animate-bell-pulse" : ""} />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+          <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-primary text-white text-[11px] font-bold rounded-full flex items-center justify-center leading-none">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -308,17 +322,17 @@ export function NotificationBell({ onNavigate }: { onNavigate: (n: NotificationI
       {open && (
         <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-border rounded-xl shadow-lg z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-            <h3 className="font-display font-bold text-[14px] text-foreground">Notifications</h3>
+            <h3 className="font-display font-bold text-[15px] text-foreground">Notifications</h3>
             {unreadCount > 0 && (
-              <button onClick={handleMarkAllRead} className="text-[11px] font-semibold text-primary hover:underline">
+              <button onClick={handleMarkAllRead} className="text-[12px] font-semibold text-primary hover:underline">
                 Mark all as read
               </button>
             )}
           </div>
           <div className="max-h-96 overflow-y-auto">
-            {loading && <div className="px-4 py-8 text-center text-[13px] text-muted-foreground">Loading…</div>}
+            {loading && <div className="px-4 py-8 text-center text-[14px] text-muted-foreground">Loading…</div>}
             {!loading && notifications.length === 0 && (
-              <div className="px-4 py-8 text-center text-[13px] text-muted-foreground">No notifications yet.</div>
+              <div className="px-4 py-8 text-center text-[14px] text-muted-foreground">No notifications yet.</div>
             )}
             {!loading && notifications.map((n) => (
               <button
@@ -330,10 +344,10 @@ export function NotificationBell({ onNavigate }: { onNavigate: (n: NotificationI
               >
                 <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${n.read_at === null ? "bg-primary" : "bg-transparent"}`} />
                 <div className="min-w-0">
-                  <div className={`text-[13px] leading-snug ${n.read_at === null ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                  <div className={`text-[14px] leading-snug ${n.read_at === null ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
                     {n.message}
                   </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">
+                  <div className="text-[12px] text-muted-foreground mt-0.5 font-mono">
                     {formatRelativeTime(n.created_at)}
                   </div>
                 </div>
@@ -374,7 +388,7 @@ export function AccountMenu({ user, onLogout }: { user: SessionUser; onLogout: (
         <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
           <User size={16} className="text-primary" />
         </div>
-        <div className="text-[12px] text-left">
+        <div className="text-[13px] text-left">
           <div className="font-semibold text-foreground leading-tight">{user.email}</div>
           <div className="text-muted-foreground leading-tight">{isAdmin ? "Administrator" : user.facility_name}</div>
         </div>
@@ -384,9 +398,9 @@ export function AccountMenu({ user, onLogout }: { user: SessionUser; onLogout: (
       {open && (
         <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-border rounded-xl shadow-lg z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-border">
-            <div className="text-[13px] font-bold text-foreground">{user.email}</div>
-            {!isAdmin && <div className="text-[12px] text-muted-foreground mt-0.5">{user.facility_name}</div>}
-            <span className="inline-flex items-center mt-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wide bg-primary-tint text-primary">
+            <div className="text-[14px] font-bold text-foreground">{user.email}</div>
+            {!isAdmin && <div className="text-[13px] text-muted-foreground mt-0.5">{user.facility_name}</div>}
+            <span className="inline-flex items-center mt-1.5 px-2 py-0.5 rounded-full text-[11.5px] font-bold uppercase tracking-wide bg-primary-tint text-primary">
               {isAdmin ? "Admin" : user.role}
             </span>
           </div>
@@ -394,14 +408,14 @@ export function AccountMenu({ user, onLogout }: { user: SessionUser; onLogout: (
           <div className="py-1.5">
             <button
               onClick={() => { setShowChangePassword(true); setOpen(false); }}
-              className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] font-semibold text-foreground hover:bg-secondary transition-colors"
+              className="w-full flex items-center gap-2.5 px-4 py-2 text-[14px] font-semibold text-foreground hover:bg-secondary transition-colors"
             >
               <KeyRound size={15} className="text-muted-foreground" /> Change Password
             </button>
             {!isAdmin && (
               <button
                 onClick={() => { setShowEditProfile(true); setOpen(false); }}
-                className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] font-semibold text-foreground hover:bg-secondary transition-colors"
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-[14px] font-semibold text-foreground hover:bg-secondary transition-colors"
               >
                 <Building2 size={15} className="text-muted-foreground" /> Edit Facility Profile
               </button>
@@ -411,7 +425,7 @@ export function AccountMenu({ user, onLogout }: { user: SessionUser; onLogout: (
           <div className="border-t border-border py-1.5">
             <button
               onClick={onLogout}
-              className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] font-semibold text-status-critical-text hover:bg-status-critical-tint transition-colors"
+              className="w-full flex items-center gap-2.5 px-4 py-2 text-[14px] font-semibold text-status-critical-text hover:bg-status-critical-tint transition-colors"
             >
               <LogOut size={15} /> Log out
             </button>

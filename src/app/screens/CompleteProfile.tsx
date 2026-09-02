@@ -59,7 +59,7 @@ export function CompleteProfileScreen({ user, onComplete }: { user: SessionUser;
           />
 
           {submitError && (
-            <div className="text-[12px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2">
+            <div className="text-[13px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2">
               {submitError}
             </div>
           )}
