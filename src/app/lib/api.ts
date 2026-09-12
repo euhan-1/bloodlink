@@ -1,5 +1,6 @@
 import { getDevFacilityId } from "./devMode";
 import { clearSession, getToken, setSession, updateSessionUser, type SessionUser } from "./session";
+import { type InventoryApiRow } from "./inventoryTypes";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
