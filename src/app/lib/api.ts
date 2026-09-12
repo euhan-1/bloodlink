@@ -53,6 +53,18 @@ export async function apiPost<T>(path: string, body: unknown, headers?: HeadersI
   return res.json();
 }
 
+export async function apiPut<T>(path: string, body: unknown, headers?: HeadersInit): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...withAuthHeaders(headers) },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
 export async function apiPatch<T>(path: string, body: unknown, headers?: HeadersInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: "PATCH",
@@ -243,12 +255,6 @@ export function adminResetAccountPassword(userId: number): Promise<AdminPassword
   return apiPost<AdminPasswordResetResult>(`/admin/accounts/${userId}/reset-password`, {});
 }
 
-export type AdminDeleteFacilityResult = { deleted: true; id: number; name: string; accounts_removed: number };
-
-export function adminDeleteFacility(facilityId: number, confirmName: string): Promise<AdminDeleteFacilityResult> {
-  return apiDelete<AdminDeleteFacilityResult>(`/admin/facilities/${facilityId}`, { confirm_name: confirmName });
-}
-
 // ─── Historical inventory-snapshot backfill (blood banks only — the server
 // rejects this for hospitals regardless of what the frontend shows) ────────
 
@@ -261,6 +267,36 @@ export type HistoricalUploadResult = {
 
 export function uploadHistoricalInventorySnapshots(file: File): Promise<HistoricalUploadResult> {
   return apiUploadFile<HistoricalUploadResult>("/forecast/historical-upload", file);
+}
+
+export function deleteInventoryUnit(din: string): Promise<{ deleted: true; din: string }> {
+  return apiDelete(`/inventory/${encodeURIComponent(din)}`, {});
+}
+
+export type CreateInventoryUnitBody = {
+  din: string;
+  blood_type: string;
+  component: string;
+  location: string;
+  volume_ml: number;
+  collected_date: string;
+  expires_date: string;
+};
+
+export function createInventoryUnit(body: CreateInventoryUnitBody): Promise<InventoryApiRow> {
+  return apiPost<InventoryApiRow>("/inventory", body);
+}
+
+// ─── Blood-type thresholds — still global across facilities, not a
+// per-facility policy table (see /inventory/summary's docstring server-side).
+
+export type ThresholdRow = { blood_type: string; minimum_units: number; maximum_units: number };
+
+export function updateThreshold(bloodType: string, minimumUnits: number, maximumUnits: number): Promise<ThresholdRow> {
+  return apiPut<ThresholdRow>(`/thresholds/${encodeURIComponent(bloodType)}`, {
+    minimum_units: minimumUnits,
+    maximum_units: maximumUnits,
+  });
 }
 
 export type NotifyNearbyHospitalsResult = { notified_count: number; notified_facilities: string[] };

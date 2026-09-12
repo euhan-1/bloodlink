@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS blood_type_thresholds (
     blood_type text PRIMARY KEY,
-    minimum_units integer NOT NULL
+    minimum_units integer NOT NULL,
+    maximum_units integer NOT NULL
 );
 
 -- Depends on facilities (schema_facilities.sql) existing first.

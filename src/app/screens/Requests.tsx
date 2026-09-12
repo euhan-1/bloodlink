@@ -12,7 +12,7 @@ import { useFlashOnChange } from "../lib/motion";
 // since a coordination chat is a live conversation, not a background alert.
 const CHAT_MESSAGE_POLL_MS = 4000;
 
-type RequestTab = "sourcing" | "transfer" | "pending";
+type RequestTab = "sourcing" | "transfer";
 
 const bloodCompatibility: Record<string, string[]> = {
   "A+":  ["A+", "A-", "O+", "O-"],
@@ -79,35 +79,34 @@ function IncomingRequestCard({
   const flash = useFlashOnChange(phase);
   return (
     <div
-      className={`rounded-lg border p-3 ${isChatSelected ? "border-primary" : "border-border"} ${flash ? "animate-value-flash-bg" : ""}`}
+      onClick={() => onOpenChat(req.id)}
+      title={isChatSelected ? "Viewing chat" : "Open chat"}
+      className={`rounded-lg border-2 p-3 cursor-pointer transition-colors ${
+        isChatSelected ? "border-primary bg-primary-tint" : "border-info-border bg-white hover:bg-info-tint"
+      } ${flash ? "animate-value-flash-bg" : ""}`}
     >
       <div className="flex items-center justify-between mb-1.5">
         <div className="text-[14px] font-semibold text-foreground">
           {req.requesting_facility_name ?? "Unknown facility"}
         </div>
-        <BloodTypeBadge type={req.blood_type} size="sm" />
+        <BloodTypeBadge type={req.blood_type} size="md" />
       </div>
-      <div className="text-[12px] text-muted-foreground mb-2">
+      <div className="flex items-center gap-1.5 mb-2 text-[12px] text-muted-foreground">
+        <MessageSquare size={12} className="text-info shrink-0" />
         {req.quantity} units · {EMERGENCY_TYPE_LABELS[req.emergency_type]}
       </div>
-      <button
-        onClick={() => onOpenChat(req.id)}
-        className={`block text-[12px] font-semibold mb-2 hover:underline ${isChatSelected ? "text-primary" : "text-muted-foreground"}`}
-      >
-        {isChatSelected ? "Viewing chat" : "Open chat"}
-      </button>
 
       {req.status === "pending" && (
         <div className="flex gap-1.5">
           <button
-            onClick={() => onAction(req.id, "accept")}
+            onClick={(e) => { e.stopPropagation(); onAction(req.id, "accept"); }}
             disabled={busy}
             className="h-7 px-3 bg-primary text-white text-[12px] font-semibold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
           >
             {busy ? "…" : "Accept"}
           </button>
           <button
-            onClick={() => onAction(req.id, "decline")}
+            onClick={(e) => { e.stopPropagation(); onAction(req.id, "decline"); }}
             disabled={busy}
             className="h-7 px-3 bg-white border border-border text-[12px] font-semibold text-foreground rounded-lg hover:bg-secondary transition-colors disabled:opacity-60"
           >
@@ -118,7 +117,7 @@ function IncomingRequestCard({
 
       {req.status === "accepted" && !req.supplier_confirmed_at && (
         <button
-          onClick={() => onAction(req.id, "confirm-release")}
+          onClick={(e) => { e.stopPropagation(); onAction(req.id, "confirm-release"); }}
           disabled={busy}
           className="w-full h-7 bg-primary text-white text-[12px] font-semibold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
         >
@@ -161,38 +160,37 @@ function AcceptedRequestCard({
   const flash = useFlashOnChange(phase);
   return (
     <div
-      className={`rounded-lg border p-3 ${isChatSelected ? "border-primary" : "border-border"} ${flash ? "animate-value-flash-bg" : ""}`}
+      onClick={onOpenChat}
+      title={isChatSelected ? "Viewing chat" : "Open chat"}
+      className={`rounded-lg border-2 p-3 cursor-pointer transition-colors ${
+        isChatSelected ? "border-primary bg-primary-tint" : "border-info-border bg-white hover:bg-info-tint"
+      } ${flash ? "animate-value-flash-bg" : ""}`}
     >
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="text-[14px] font-semibold text-foreground">{req.supplying_facility_name}</div>
-        <BloodTypeBadge type={req.blood_type} size="sm" />
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="text-[16px] font-semibold text-foreground">{req.supplying_facility_name}</div>
+        <BloodTypeBadge type={req.blood_type} size="lg" />
       </div>
-      <div className="text-[12px] text-muted-foreground mb-2">
+      <div className="flex items-center gap-1.5 mb-2 text-[13px] text-muted-foreground">
+        <MessageSquare size={13} className="text-info shrink-0" />
         {req.quantity} units · {EMERGENCY_TYPE_LABELS[req.emergency_type]}
       </div>
-      <button
-        onClick={onOpenChat}
-        className={`block text-[12px] font-semibold mb-2 hover:underline ${isChatSelected ? "text-primary" : "text-muted-foreground"}`}
-      >
-        {isChatSelected ? "Viewing chat" : "Open chat"}
-      </button>
 
       {req.status === "completed" ? (
-        <span className="flex items-center gap-1 animate-success-pop text-[12px] font-semibold text-status-safe-text">
-          <CheckCircle size={12} /> Completed
+        <span className="flex items-center gap-1 animate-success-pop text-[13px] font-semibold text-status-safe-text">
+          <CheckCircle size={13} /> Completed
         </span>
       ) : !req.supplier_confirmed_at ? (
-        <span className="text-[12px] text-muted-foreground">Waiting for supplier to confirm release</span>
+        <span className="text-[13px] text-muted-foreground">Waiting for supplier to confirm release</span>
       ) : canConfirmReceipt ? (
         <button
-          onClick={onConfirmReceipt}
+          onClick={(e) => { e.stopPropagation(); onConfirmReceipt(); }}
           disabled={busy}
-          className="w-full h-7 bg-primary text-white text-[12px] font-semibold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
+          className="w-full h-7 bg-primary text-white text-[13px] font-semibold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
         >
           {busy ? "Confirming…" : "Confirm Receipt"}
         </button>
       ) : (
-        <span className="text-[12px] text-muted-foreground">Switch to the requesting facility above to confirm receipt</span>
+        <span className="text-[13px] text-muted-foreground">Switch to the requesting facility above to confirm receipt</span>
       )}
     </div>
   );
@@ -447,18 +445,18 @@ export function RequestsScreen({
     <div className="max-w-screen-2xl mx-auto px-6 py-6">
       {/* Sub-tabs */}
       <div className="flex gap-1 mb-6 bg-secondary rounded-lg p-1 w-fit">
-        {(["sourcing", "transfer", "pending"] as RequestTab[]).map((t) => (
+        {(["sourcing", "transfer"] as RequestTab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`relative px-5 py-2 text-[14px] font-semibold rounded transition-colors ${
+            className={`relative px-5 py-2 text-[14px] font-semibold rounded border transition-all duration-200 ease-out ${
               tab === t
-                ? "bg-white text-foreground shadow-sm border border-border"
-                : "text-muted-foreground hover:text-foreground"
+                ? "bg-white text-foreground shadow-sm border-border scale-105"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            {t === "sourcing" ? "Emergency Sourcing" : t === "transfer" ? "Request & Transfer" : "Pending Requests"}
-            {t === "pending" && pendingOnly.length > 0 && (
+            {t === "sourcing" ? "Emergency Sourcing" : "Request and Chats"}
+            {t === "transfer" && pendingOnly.length > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                 {pendingOnly.length}
               </span>
@@ -482,9 +480,9 @@ export function RequestsScreen({
                     <button
                       key={bt}
                       onClick={() => setSearchType(bt)}
-                      className={`py-2 text-[14px] font-display font-bold rounded-lg border transition-colors ${
+                      className={`py-2 text-[14px] font-display font-bold rounded-lg border transition-all duration-200 ease-out ${
                         searchType === bt
-                          ? "bg-primary text-white border-primary"
+                          ? "bg-primary text-white border-primary scale-110"
                           : "bg-primary-tint text-primary border-transparent hover:border-primary/40"
                       }`}
                     >
@@ -590,7 +588,7 @@ export function RequestsScreen({
                           <CheckCircle size={11} /> Available
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1 text-[12px] font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full border border-gray-200">
+                        <span className="flex items-center gap-1 text-[12px] font-semibold bg-gray-100 text-foreground px-2 py-0.5 rounded-full border border-gray-200">
                           Unavailable
                         </span>
                       )}
@@ -665,7 +663,7 @@ export function RequestsScreen({
                         <CheckCircle size={13} /> Available
                       </span>
                     ) : (
-                      <span className="text-[13px] font-semibold bg-gray-100 text-gray-500 px-3 py-1 rounded-full border border-gray-200">
+                      <span className="text-[13px] font-semibold bg-gray-100 text-foreground px-3 py-1 rounded-full border border-gray-200">
                         Unavailable
                       </span>
                     )}
@@ -674,7 +672,7 @@ export function RequestsScreen({
                   {/* Real map — every ranked candidate is a real pin at its
                       real coordinates; the selected one is the larger, primary-
                       colored pin. Click any pin to select that facility. */}
-                  <div className="mx-6 mt-5 rounded-xl overflow-hidden border border-border" style={{ height: 240 }}>
+                  <div className="mx-6 mt-5 rounded-xl overflow-hidden border border-border" style={{ height: 360 }}>
                     <FacilityNetworkMap key={searchType} banks={banks} selectedBankId={selectedBank} onSelectBank={setSelectedBank} />
                   </div>
 
@@ -738,9 +736,9 @@ export function RequestsScreen({
                                 <button
                                   key={et}
                                   onClick={() => setEmergencyType(et)}
-                                  className={`py-2 text-[13px] font-bold rounded-lg border transition-colors ${
+                                  className={`py-2 text-[13px] font-bold rounded-lg border transition-all duration-200 ease-out ${
                                     emergencyType === et
-                                      ? "bg-primary text-white border-primary"
+                                      ? "bg-primary text-white border-primary scale-105"
                                       : "bg-white text-foreground border-border hover:border-primary/40"
                                   }`}
                                 >
@@ -791,6 +789,7 @@ export function RequestsScreen({
       )}
 
       {tab === "transfer" && (
+        <>
         <div className="grid lg:grid-cols-5 gap-5">
           {/* Transfer confirmation flow */}
           <div className="lg:col-span-2 space-y-4">
@@ -800,45 +799,51 @@ export function RequestsScreen({
               </div>
             )}
 
-            {/* Incoming requests — supplier-side actions */}
-            <div className="bg-white border border-border rounded-xl p-5">
-              <h3 className="font-semibold text-foreground mb-1">
-                Incoming Requests — {
-                  facilities.find((f) => f.id === actingFacilityId)?.name
-                  ?? getCurrentUser()?.facility_name
-                  ?? "…"
-                }
-              </h3>
-              <p className="text-[13px] text-muted-foreground mb-4">
-                Requests directed to you as the supplying facility
-              </p>
+            {/* Incoming requests — supplier-side actions. Only blood banks can
+                ever be a supplying facility (see /requests' bloodbank-only
+                check server-side), so a hospital never has anything to show
+                here — the card is hidden rather than always rendering an
+                empty "No incoming requests" state. */}
+            {isBloodBankRequester && (
+              <div className="bg-white border border-border rounded-xl p-5">
+                <h3 className="font-semibold text-foreground mb-1">
+                  Incoming Requests — {
+                    facilities.find((f) => f.id === actingFacilityId)?.name
+                    ?? getCurrentUser()?.facility_name
+                    ?? "…"
+                  }
+                </h3>
+                <p className="text-[13px] text-muted-foreground mb-4">
+                  Requests directed to you as the supplying facility
+                </p>
 
-              {incomingLoading && (
-                <div className="text-[13px] text-muted-foreground py-4 text-center">Loading…</div>
-              )}
-              {!incomingLoading && incomingError && (
-                <div className="text-[13px] text-red-700 py-4 text-center">Failed to load: {incomingError}</div>
-              )}
-              {!incomingLoading && !incomingError && incomingRequests.length === 0 && (
-                <div className="text-[13px] text-muted-foreground py-4 text-center">
-                  No incoming requests for this facility.
-                </div>
-              )}
-              {!incomingLoading && !incomingError && incomingRequests.length > 0 && (
-                <div className="space-y-2">
-                  {incomingRequests.map((req) => (
-                    <IncomingRequestCard
-                      key={req.id}
-                      req={req}
-                      busy={actionPendingId === req.id}
-                      onAction={performRequestAction}
-                      isChatSelected={selectedRequestId === req.id}
-                      onOpenChat={setSelectedRequestId}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+                {incomingLoading && (
+                  <div className="text-[13px] text-muted-foreground py-4 text-center">Loading…</div>
+                )}
+                {!incomingLoading && incomingError && (
+                  <div className="text-[13px] text-red-700 py-4 text-center">Failed to load: {incomingError}</div>
+                )}
+                {!incomingLoading && !incomingError && incomingRequests.length === 0 && (
+                  <div className="text-[13px] text-muted-foreground py-4 text-center">
+                    No incoming requests for this facility.
+                  </div>
+                )}
+                {!incomingLoading && !incomingError && incomingRequests.length > 0 && (
+                  <div className="space-y-2">
+                    {incomingRequests.map((req) => (
+                      <IncomingRequestCard
+                        key={req.id}
+                        req={req}
+                        busy={actionPendingId === req.id}
+                        onAction={performRequestAction}
+                        isChatSelected={selectedRequestId === req.id}
+                        onOpenChat={setSelectedRequestId}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Outgoing requests — requester-side confirmation */}
             <div className="bg-white border border-border rounded-xl p-5">
@@ -993,10 +998,12 @@ export function RequestsScreen({
             })()}
           </div>
         </div>
-      )}
 
-      {tab === "pending" && (
-        <div className="space-y-4">
+        {/* Outgoing requests still awaiting a response — folded in from the
+            former standalone "Pending Requests" tab so acting on a request
+            (Incoming), watching one you sent (below), and confirming receipt
+            (above) don't require switching tabs. */}
+        <div className="space-y-4 mt-5">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-foreground">Outgoing Requests</h3>
@@ -1008,12 +1015,6 @@ export function RequestsScreen({
               {pendingOnly.length} pending
             </span>
           </div>
-
-          {actionError && (
-            <div className="text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-              {actionError}
-            </div>
-          )}
 
           {requestsLoading && (
             <div className="bg-white border border-border rounded-xl p-10 text-center text-[14px] text-muted-foreground">
@@ -1092,6 +1093,7 @@ export function RequestsScreen({
             </div>
           )}
         </div>
+        </>
       )}
 
       {cancelConfirmId !== null && (() => {

@@ -886,6 +886,73 @@ def undo_upload(upload_id: int, facility_id: int = Depends(get_acting_facility_i
     return {"removed_count": removed_count, "blocked": blocked, "undone_at": undone_at}
 
 
+class CreateInventoryUnitBody(BaseModel):
+    din: str
+    blood_type: str
+    component: str
+    location: str
+    volume_ml: int
+    collected_date: date
+    expires_date: date
+
+
+@app.post("/inventory")
+def create_inventory_unit(body: CreateInventoryUnitBody, facility_id: int = Depends(get_acting_facility_id)):
+    """Manual single-unit intake — the Inventory screen's "Add Unit" button,
+    for a facility that doesn't want to prepare a CSV for one unit. Re-applies
+    the same validation _parse_inventory_csv uses for the bulk path, since
+    this skips that parser entirely.
+    """
+    din = body.din.strip()
+    component = body.component.strip()
+    location = body.location.strip()
+    if not din:
+        raise HTTPException(status_code=400, detail="din is required")
+    if body.blood_type not in VALID_BLOOD_TYPES:
+        raise HTTPException(status_code=400, detail=f"invalid blood_type {body.blood_type!r}")
+    if not component:
+        raise HTTPException(status_code=400, detail="component is required")
+    if not location:
+        raise HTTPException(status_code=400, detail="location is required")
+    if body.volume_ml <= 0:
+        raise HTTPException(status_code=400, detail="volume_ml must be a positive whole number")
+    if body.expires_date <= body.collected_date:
+        raise HTTPException(status_code=400, detail="expires_date must be after collected_date")
+
+    with engine.begin() as conn:
+        existing_facility = conn.execute(
+            text("SELECT facility_id FROM blood_units WHERE din = :din"), {"din": din}
+        ).scalar()
+        if existing_facility is not None:
+            detail = f"DIN {din!r} is already registered"
+            if existing_facility != facility_id:
+                detail += " to a different facility"
+            raise HTTPException(status_code=400, detail=detail)
+
+        row = conn.execute(
+            text(
+                """
+                INSERT INTO blood_units
+                    (din, blood_type, component, location, volume_ml, collected_date, expires_date, facility_id)
+                VALUES
+                    (:din, :blood_type, :component, :location, :volume_ml, :collected_date, :expires_date, :facility_id)
+                RETURNING din, blood_type, component, location, volume_ml, collected_date, expires_date
+                """
+            ),
+            {
+                "din": din,
+                "blood_type": body.blood_type,
+                "component": component,
+                "location": location,
+                "volume_ml": body.volume_ml,
+                "collected_date": body.collected_date,
+                "expires_date": body.expires_date,
+                "facility_id": facility_id,
+            },
+        ).mappings().first()
+    return dict(row)
+
+
 @app.get("/inventory")
 def get_inventory(facility_id: int = Depends(get_acting_facility_id)):
     """The logged-in user's own facility's stock only — blood_units holds every
@@ -909,6 +976,31 @@ def get_inventory(facility_id: int = Depends(get_acting_facility_id)):
     return [dict(row) for row in rows]
 
 
+@app.delete("/inventory/{din}")
+def delete_inventory_unit(din: str, facility_id: int = Depends(get_acting_facility_id)):
+    """Removes one unit from the logged-in facility's own inventory.
+
+    Blocked if the unit is reserved for a pending/accepted transfer — the same
+    reserved_for_request_id guard the CSV-upload undo flow uses, since a unit
+    already promised to another facility can't just disappear out from under
+    that request.
+    """
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT id, facility_id, reserved_for_request_id FROM blood_units WHERE din = :din"),
+            {"din": din},
+        ).mappings().first()
+        if row is None or row["facility_id"] != facility_id:
+            raise HTTPException(status_code=404, detail=f"no unit {din!r} on file at this facility")
+        if row["reserved_for_request_id"] is not None:
+            raise HTTPException(
+                status_code=400,
+                detail="this unit is reserved for a pending transfer and can't be removed",
+            )
+        conn.execute(text("DELETE FROM blood_units WHERE id = :id"), {"id": row["id"]})
+    return {"deleted": True, "din": din}
+
+
 @app.get("/inventory/summary")
 def get_inventory_summary(facility_id: int = Depends(get_acting_facility_id)):
     """Per-type unit counts (the logged-in user's own facility) against
@@ -923,7 +1015,7 @@ def get_inventory_summary(facility_id: int = Depends(get_acting_facility_id)):
         rows = conn.execute(
             text(
                 """
-                SELECT t.blood_type, t.minimum_units, COALESCE(c.unit_count, 0) AS units
+                SELECT t.blood_type, t.minimum_units, t.maximum_units, COALESCE(c.unit_count, 0) AS units
                 FROM blood_type_thresholds t
                 LEFT JOIN (
                     SELECT blood_type, count(*) AS unit_count
@@ -937,6 +1029,45 @@ def get_inventory_summary(facility_id: int = Depends(get_acting_facility_id)):
             {"facility_id": facility_id},
         ).mappings().all()
     return [dict(row) for row in rows]
+
+
+class UpdateThresholdBody(BaseModel):
+    minimum_units: int
+    maximum_units: int
+
+
+@app.put("/thresholds/{blood_type}")
+def update_threshold(
+    blood_type: str, body: UpdateThresholdBody, facility_id: int = Depends(get_acting_facility_id)
+):
+    """Edits the minimum/maximum safe-stock levels for one blood type.
+
+    Any logged-in facility can call this (matches the Inventory screen's
+    Thresholds button, available to every account type) — facility_id here
+    only proves a real session exists, same as every other authenticated
+    endpoint; it isn't used to scope the write, since the table itself is
+    still the global, not-per-facility one described on /inventory/summary
+    — editing here changes what every facility sees, same known simplification.
+    """
+    if body.minimum_units < 0 or body.maximum_units < 0:
+        raise HTTPException(status_code=400, detail="thresholds cannot be negative")
+    if body.minimum_units > body.maximum_units:
+        raise HTTPException(status_code=400, detail="minimum cannot be greater than maximum")
+    with engine.begin() as conn:
+        row = conn.execute(
+            text(
+                """
+                UPDATE blood_type_thresholds
+                SET minimum_units = :minimum_units, maximum_units = :maximum_units
+                WHERE blood_type = :blood_type
+                RETURNING blood_type, minimum_units, maximum_units
+                """
+            ),
+            {"blood_type": blood_type, "minimum_units": body.minimum_units, "maximum_units": body.maximum_units},
+        ).mappings().first()
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"no threshold row for blood type {blood_type!r}")
+    return dict(row)
 
 
 # ─── Inventory CSV Upload (Step 8A) ────────────────────────────────────────
@@ -1675,9 +1806,11 @@ def _evaluate_facility_stock(stock_by_type: dict[str, int], thresholds: dict[str
 def get_nearby_facilities(
     blood_type: str, quantity: int = 1, acting_facility_id: int = Depends(get_acting_facility_id)
 ):
-    """Blood banks ranked by real haversine distance from the logged-in user's
-    own facility, with a real Available/Unavailable check per facility (see
-    _evaluate_facility_stock).
+    """Blood banks ranked in three tiers — exact-type available, then
+    unavailable-but-with-a-compatible-alternative in stock, then fully
+    unavailable — with real haversine distance from the logged-in user's own
+    facility as the tiebreaker within each tier (see _evaluate_facility_stock
+    for the availability/alternatives check).
 
     Expired units are excluded on purpose — expired stock isn't usable, so it
     can't count as available. Safety reserve is the same global per-type
@@ -1745,7 +1878,16 @@ def get_nearby_facilities(
             ),
             **evaluation,
         })
-    results.sort(key=lambda r: r["distance_km"])
+    def rank(r: dict) -> tuple[int, float]:
+        if r["available"]:
+            tier = 0
+        elif r["compatible_alternatives"]:
+            tier = 1
+        else:
+            tier = 2
+        return (tier, r["distance_km"])
+
+    results.sort(key=rank)
     return results
 
 
@@ -1843,17 +1985,17 @@ def create_request(body: CreateRequestBody, requesting_facility_id: int = Depend
 
         # Emergency Sourcing's own search only ever surfaces bloodbank-type
         # candidates, so a well-behaved client never sends anything else here
-        # — but that's a frontend filter, not a guarantee. A blood bank has
-        # no legitimate reason to target a hospital (or a nonexistent id) as
-        # its supplier, so re-checked fresh from the DB and rejected outright
+        # — but that's a frontend filter, not a guarantee. No facility (hospital
+        # or blood bank) has a legitimate reason to target a hospital (or a
+        # nonexistent id) as its supplier — only blood banks hold distributable
+        # stock — so this is re-checked fresh from the DB and rejected outright
         # rather than trusted from the client, same pattern as the
         # emergency_type restriction just above.
-        if requesting_facility_type == "bloodbank":
-            supplying_facility_type = conn.execute(
-                text("SELECT facility_type FROM facilities WHERE id = :id"), {"id": body.supplying_facility_id}
-            ).scalar()
-            if supplying_facility_type != "bloodbank":
-                raise HTTPException(status_code=400, detail="a blood bank can only request from another blood bank")
+        supplying_facility_type = conn.execute(
+            text("SELECT facility_type FROM facilities WHERE id = :id"), {"id": body.supplying_facility_id}
+        ).scalar()
+        if supplying_facility_type != "bloodbank":
+            raise HTTPException(status_code=400, detail="a facility can only request from a blood bank")
 
         row = conn.execute(
             text(
@@ -2650,96 +2792,6 @@ def admin_update_facility_status(facility_id: int, body: UpdateFacilityStatusBod
     if row is None:
         raise HTTPException(status_code=404, detail="facility not found")
     return dict(row)
-
-
-class DeleteFacilityBody(BaseModel):
-    confirm_name: str
-
-
-# Every table of real operational data with a facility_id column (or a
-# facility_id-equivalent, like requests' two-sided requesting/supplying
-# columns) — checked explicitly so a blocked deletion gets a message an
-# admin can actually act on, rather than a raw foreign-key-violation error.
-# blast_messages/blast_replies have no facility_id column of their own (only
-# blast_id/donor_id), so a facility with either is already caught via the
-# blasts/donors checks below. Login accounts (users.facility_id) are
-# deliberately NOT in this list — they aren't "data referencing the
-# facility" the way a blood unit or donor is, they're the facility's own
-# credentials, so deletion removes them as part of the same confirmed
-# action instead of blocking on them (see admin_delete_facility below).
-_FACILITY_ENTANGLEMENT_QUERIES: list[tuple[str, str]] = [
-    ("blood unit", "SELECT count(*) FROM blood_units WHERE facility_id = :id"),
-    ("donor", "SELECT count(*) FROM donors WHERE facility_id = :id"),
-    (
-        "request",
-        "SELECT count(*) FROM requests WHERE requesting_facility_id = :id OR supplying_facility_id = :id",
-    ),
-    ("upload history row", "SELECT count(*) FROM upload_history WHERE facility_id = :id"),
-    ("notification", "SELECT count(*) FROM notifications WHERE facility_id = :id"),
-    ("donor blast", "SELECT count(*) FROM blasts WHERE facility_id = :id"),
-    ("coordination message", "SELECT count(*) FROM request_messages WHERE sender_facility_id = :id"),
-    ("inventory snapshot", "SELECT count(*) FROM inventory_snapshots WHERE facility_id = :id"),
-    ("forecast alert record", "SELECT count(*) FROM forecast_alert_state WHERE facility_id = :id"),
-]
-
-
-@app.delete("/admin/facilities/{facility_id}")
-def admin_delete_facility(facility_id: int, body: DeleteFacilityBody, admin: dict = Depends(require_admin_role)):
-    """The one genuinely irreversible admin action in the app, deliberately
-    hard to reach by accident rather than merely "used carefully":
-
-    1. Only ever allowed on an already-deactivated facility — deletion isn't
-       even attempted on an active one, forcing a real two-step
-       deactivate-then-delete process as the safety net.
-    2. Blocked outright if any real operational data still references this
-       facility, checked across every table with a facility_id column —
-       reported back precisely (what, and how many), not just "can't
-       delete." Login accounts are the one exception: they're removed as
-       part of this same action (see step 4) rather than blocking on them,
-       since a facility's own credentials aren't "other data referencing
-       it" the way a blood unit or donor is.
-    3. Requires the admin to type the facility's exact current name, not a
-       Yes/No click — the one place in the app that asks for typed
-       confirmation, reserved for the one action with no undo.
-    4. Deletes the facility's own login account(s) in the same transaction,
-       so a real, in-use facility can be fully removed without needing
-       direct database access — this is the only cascade this endpoint
-       performs; every other table above still hard-blocks.
-
-    Logged to stdout on success (facility name, accounts removed, who, when)
-    — there's no dedicated audit table, so this line is the record.
-    """
-    with engine.begin() as conn:
-        facility = conn.execute(
-            text("SELECT id, name, is_active FROM facilities WHERE id = :id"), {"id": facility_id}
-        ).mappings().first()
-        if facility is None:
-            raise HTTPException(status_code=404, detail="facility not found")
-
-        if facility["is_active"]:
-            raise HTTPException(status_code=400, detail="deactivate this facility before it can be deleted")
-
-        if body.confirm_name != facility["name"]:
-            raise HTTPException(status_code=400, detail="typed name does not match this facility's exact name")
-
-        blocking: list[str] = []
-        for label, query in _FACILITY_ENTANGLEMENT_QUERIES:
-            count = conn.execute(text(query), {"id": facility_id}).scalar()
-            if count > 0:
-                blocking.append(f"{count} {label}{'' if count == 1 else 's'}")
-        if blocking:
-            raise HTTPException(status_code=409, detail=f"Cannot delete: {', '.join(blocking)} still reference this facility")
-
-        deleted_accounts = conn.execute(
-            text("DELETE FROM users WHERE facility_id = :id RETURNING email"), {"id": facility_id}
-        ).scalars().all()
-        conn.execute(text("DELETE FROM facilities WHERE id = :id"), {"id": facility_id})
-
-    print(
-        f"[admin] facility deleted: id={facility_id} name={facility['name']!r} "
-        f"accounts_removed={list(deleted_accounts)} by={admin['email']} at={datetime.now(timezone.utc).isoformat()}"
-    )
-    return {"deleted": True, "id": facility_id, "name": facility["name"], "accounts_removed": len(deleted_accounts)}
 
 
 # ─── Donors (Step 7A) ───────────────────────────────────────────────────────

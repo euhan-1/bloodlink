@@ -93,17 +93,17 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
             <span className="text-xl font-bold tracking-tight">BloodLink</span>
           </div>
           <h1 className="text-4xl font-bold leading-tight mb-6">
-            Connected blood supply for modern healthcare
+            AI-assisted blood supply coordination for modern healthcare
           </h1>
           <p className="text-white/70 text-[16px] leading-relaxed">
-            Real-time inventory management, emergency sourcing, and donor coordination — unified for blood banks and hospitals across the network.
+            Real-time inventory management, emergency sourcing and response, and donor coordination — unified for blood banks and hospitals across the network.
           </p>
         </div>
 
         <div className="space-y-4">
           {[
             { icon: <ShieldCheck size={16} />, text: "Verified healthcare facilities only" },
-            { icon: <Zap size={16} />, text: "Live shortage alerts and forecasting" },
+            { icon: <Zap size={16} />, text: "AI-assisted forecasting and shortage alerts" },
             { icon: <RefreshCw size={16} />, text: "Automated donor outreach via SMS" },
           ].map((item, i) => (
             <div key={i} className="flex items-center gap-3 text-white/80 text-sm">
@@ -193,10 +193,10 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
                       key={type}
                       type="button"
                       onClick={() => handleSelectDemo(type)}
-                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[14px] font-semibold rounded transition-colors ${
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[14px] font-semibold rounded border transition-all duration-200 ease-out ${
                         selectedDemo === type
-                          ? "bg-white text-foreground shadow-sm border border-border"
-                          : "text-muted-foreground hover:text-foreground"
+                          ? "bg-white text-foreground shadow-sm border-border scale-105"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       {type === "hospital" ? <Building2 size={15} /> : type === "bloodbank" ? <FlaskConical size={15} /> : <ShieldCheck size={15} />}

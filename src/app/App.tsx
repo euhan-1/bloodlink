@@ -61,9 +61,9 @@ function TopNav({
             <button
               key={item.key}
               onClick={() => setScreen(item.key)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded text-[14px] font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded text-[14px] font-medium transition-all duration-200 ease-out ${
                 screen === item.key
-                  ? "bg-accent text-primary"
+                  ? "bg-accent text-primary scale-105"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary"
               }`}
             >

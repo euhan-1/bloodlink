@@ -38,15 +38,17 @@
   --secondary: #F0EEEB;
   --secondary-foreground: #443E39;
   --muted: #F0EEEB;
-  --muted-foreground: #58514B;
+  --muted-foreground: #1C1917;
   --accent: var(--role-accent-tint);
   --accent-foreground: var(--role-accent);
   --destructive: #DC2626;
   --destructive-foreground: #ffffff;
-  /* Deliberately more visible than a typical "hairline" gray — cards, table
-     rows, and inputs need to read as structure at a glance, not just on
-     close inspection. */
-  --border: #D3CBC1;
+  /* Dark gray rather than a pale hairline — cards, table rows, tabs, and
+     inputs need to read as structure at a glance, not just on close
+     inspection. Reuses the warm gray-600 already defined below rather than
+     introducing a new color, so it stays inside the one deliberate neutral
+     scale instead of a mismatched cool gray. */
+  --border: #58514B;
   --input: transparent;
   --input-background: #FAF8F6;
   --switch-background: #D1D5DB;
@@ -67,8 +69,8 @@
   --gray-700: #443E39;
   --gray-800: #2B2724;
   --gray-900: #1C1917;
-  --font-weight-medium: 600;
-  --font-weight-normal: 500;
+  --font-weight-medium: 700;
+  --font-weight-normal: 600;
   --ring: var(--role-accent);
   --chart-1: #8C1B3A;
   --chart-2: #16A34A;
@@ -133,14 +135,16 @@
      against --info-tint, now ~4:1. */
   --info-border: #5673C6;
 
-  /* Elevation — kept deliberately soft (low opacity, tight blur) so it reads
-     as a slight lift off the page rather than a drawn-on drop shadow. Button
-     shadows are tinted with --role-accent (via --role-accent-rgb) instead of
-     flat black, so they reinforce whichever brand color is active — oxblood
-     or navy — rather than looking like a generic UI-kit default, or a navy
-     button glowing pink. Card shadows stay neutral since they sit behind
-     many colors regardless of role. */
-  --shadow-card: 0 1px 2px rgba(28, 25, 23, 0.04), 0 2px 6px rgba(28, 25, 23, 0.035);
+  /* Elevation — card shadow bumped from a near-invisible hairline lift to a
+     real, visible one now that --border reads as structure on its own;
+     still two layers (tight contact shadow + softer ambient one) so it
+     reads as a card lifted off the page rather than a flat drawn-on line.
+     Button shadows are tinted with --role-accent (via --role-accent-rgb)
+     instead of flat black, so they reinforce whichever brand color is
+     active — oxblood or navy — rather than looking like a generic UI-kit
+     default, or a navy button glowing pink. Card shadows stay neutral since
+     they sit behind many colors regardless of role. */
+  --shadow-card: 0 1px 3px rgba(28, 25, 23, 0.12), 0 6px 16px rgba(28, 25, 23, 0.10);
   --shadow-button: 0 1px 2px rgba(28, 25, 23, 0.06), 0 2px 6px -1px rgba(var(--role-accent-rgb), 0.25);
   --shadow-button-hover: 0 2px 4px rgba(28, 25, 23, 0.07), 0 4px 12px -2px rgba(var(--role-accent-rgb), 0.32);
   --shadow-button-active: 0 1px 1px rgba(28, 25, 23, 0.06), 0 1px 3px rgba(var(--role-accent-rgb), 0.22);
@@ -279,16 +283,17 @@
 
   body {
     @apply bg-background text-foreground;
-    /* Baseline body weight, bumped twice now: regular->medium, then
-       medium->semibold (500->600) for the same legibility reason —
+    /* Baseline body weight, bumped a third time now: regular->medium->
+       semibold->bold (400->500->600->700) for the same legibility reason —
        Plus Jakarta Sans only ships 400/500/600/700 as static weights (see
-       fonts.css), so 600 is the next real step, not an arbitrary value.
-       Text that already asks for font-semibold/font-bold explicitly
-       (~230 spots — most headers, all buttons, most emphasized labels)
-       matches this exactly or exceeds it, so the "important vs. plain"
-       distinction still holds; it's carried by those explicit classes, not
-       by this base rule, so raising the floor doesn't erase it. */
-    font-weight: 600;
+       fonts.css), so 700 is the last real step available, not an arbitrary
+       value. Text that already asks for font-bold explicitly (most headers,
+       all buttons, most emphasized labels) now matches this floor exactly
+       rather than exceeding it — the "important vs. plain" distinction that
+       used to be carried by font-semibold/font-bold utility classes is
+       accordingly flatter than before, which is the intended effect of
+       raising the floor this far. */
+    font-weight: 700;
   }
 
   /**

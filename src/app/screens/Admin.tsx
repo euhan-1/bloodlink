@@ -1,94 +1,104 @@
 import { useState, useEffect } from "react";
-import { AlertTriangle, KeyRound, Plus, Trash2, X } from "lucide-react";
+import { KeyRound, Plus, X, ChevronDown } from "lucide-react";
 import {
-  adminListFacilities, adminCreateFacility, adminSetFacilityActive, adminResetAccountPassword, adminDeleteFacility,
+  adminListFacilities, adminCreateFacility, adminSetFacilityActive, adminResetAccountPassword,
   type AdminFacility, type AdminFacilityAccount, type CreateFacilityAccountResult, type AdminPasswordResetResult,
 } from "../lib/api";
 import { type SessionUser } from "../lib/session";
 import { STATUS_STYLES } from "../lib/statusTokens";
 import { BloodDropLogo } from "../components/BloodTypeBadge";
 import { AccountMenu } from "../components/AccountMenu";
-import { Modal } from "../components/Modal";
 
-// Deliberately the one place in the app that asks for typed confirmation
-// instead of a Yes/No click — reserved for the one action with no undo.
-// Only ever reachable for an already-deactivated facility (see the Delete
-// button below, which doesn't even render for an active one); the server
-// re-checks both that and full data-entanglement independently regardless,
-// so this modal is a UX gate, not the actual safety mechanism.
-function DeleteFacilityModal({ facility, onClose, onDeleted }: {
-  facility: AdminFacility;
-  onClose: () => void;
-  onDeleted: () => void;
+// Shared by both the active-facilities panel and the collapsible archived
+// one below it — same columns, same row actions, just fed a different slice
+// of the list (is_active true/false) so "Archive"/"Restore" and the status
+// badge fall out of each row's own data rather than needing two versions.
+function FacilityTable({
+  facilities, statusBusyId, resetBusyId, onToggleActive, onResetPassword,
+}: {
+  facilities: AdminFacility[];
+  statusBusyId: number | null;
+  resetBusyId: number | null;
+  onToggleActive: (facility: AdminFacility) => void;
+  onResetPassword: (account: AdminFacilityAccount) => void;
 }) {
-  const [typedName, setTypedName] = useState("");
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const nameMatches = typedName === facility.name;
-
-  async function handleDelete() {
-    if (!nameMatches) return;
-    setDeleting(true);
-    setError(null);
-    try {
-      await adminDeleteFacility(facility.id, typedName);
-      onDeleted();
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete facility");
-    } finally {
-      setDeleting(false);
-    }
-  }
-
   return (
-    <Modal title="Delete Facility" onClose={onClose}>
-      <div className="space-y-4">
-        <div className="rounded-lg border border-status-critical-border bg-status-critical-tint px-3 py-2.5 flex gap-2.5">
-          <AlertTriangle size={16} className="text-status-critical-text shrink-0 mt-0.5" />
-          <p className="text-[14px] text-status-critical-text leading-snug">
-            This permanently deletes <b>{facility.name}</b> — including its login account(s) — and cannot be undone.
-            It only succeeds if no other real data (blood units, donors, requests, uploads, notifications, blasts)
-            still references it.
-          </p>
-        </div>
-
-        <div>
-          <label className="text-[13px] font-semibold text-foreground block mb-1.5">
-            Type <span className="font-mono font-bold">{facility.name}</span> to confirm
-          </label>
-          <input
-            autoFocus
-            value={typedName}
-            onChange={(e) => setTypedName(e.target.value)}
-            placeholder={facility.name}
-            className="w-full h-9 px-3 text-sm border border-border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-status-critical-border focus:border-status-critical-text transition-all"
-          />
-        </div>
-
-        {error && (
-          <div className="text-[13.5px] text-status-critical-text bg-status-critical-tint border border-status-critical-border rounded-md px-3 py-2 leading-snug">
-            {error}
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <button
-            onClick={onClose}
-            className="flex-1 h-10 border border-border rounded-md text-sm font-semibold text-foreground hover:bg-secondary transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleDelete}
-            disabled={!nameMatches || deleting}
-            className="flex-1 h-10 bg-status-critical-text text-white text-sm font-bold rounded-md hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {deleting ? "Deleting…" : "Delete Permanently"}
-          </button>
-        </div>
-      </div>
-    </Modal>
+    <table className="w-full text-[14px]">
+      <thead>
+        <tr className="border-b border-border bg-[#F8F9FB]">
+          {["Facility", "Type", "Account(s)", "Profile", "Status", ""].map((h) => (
+            <th key={h} className="text-left py-3 px-4 text-[12px] font-bold uppercase tracking-wide text-muted-foreground">
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {facilities.map((f) => (
+          <tr key={f.id} className="border-b border-border last:border-0">
+            <td className="py-3 px-4 font-semibold text-foreground">{f.name}</td>
+            <td className="py-3 px-4 text-muted-foreground capitalize">{f.facility_type}</td>
+            <td className="py-3 px-4">
+              {f.accounts.length === 0 ? (
+                <span className="text-muted-foreground">—</span>
+              ) : (
+                f.accounts.map((a) => (
+                  <div key={a.id} className="flex items-center gap-1.5 py-0.5">
+                    <div className="font-mono text-[13px] text-foreground">
+                      {a.email}
+                      {a.must_change_password && (
+                        <span className="ml-1.5 font-sans text-[12px] text-status-watch-text">(pending first login)</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => onResetPassword(a)}
+                      disabled={resetBusyId === a.id}
+                      title="Reset password"
+                      className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-[12px] font-semibold text-muted-foreground hover:text-primary hover:bg-primary-tint transition-colors disabled:opacity-60"
+                    >
+                      <KeyRound size={11} /> {resetBusyId === a.id ? "…" : "Reset"}
+                    </button>
+                  </div>
+                ))
+              )}
+            </td>
+            <td className="py-3 px-4">
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-semibold border ${
+                  f.profile_completed ? STATUS_STYLES.safe.badge : STATUS_STYLES.watch.badge
+                }`}
+              >
+                {f.profile_completed ? "Complete" : "Incomplete"}
+              </span>
+            </td>
+            <td className="py-3 px-4">
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-semibold border ${
+                  f.is_active ? STATUS_STYLES.safe.badge : STATUS_STYLES.critical.badge
+                }`}
+              >
+                {f.is_active ? "Active" : "Archived"}
+              </span>
+            </td>
+            <td className="py-3 px-4 text-right">
+              <div className="flex items-center justify-end gap-1.5">
+                <button
+                  onClick={() => onToggleActive(f)}
+                  disabled={statusBusyId === f.id}
+                  className={`h-7 px-3 rounded-md text-[13px] font-semibold border transition-colors disabled:opacity-60 ${
+                    f.is_active
+                      ? "border-status-critical-border text-status-critical-text hover:bg-status-critical-tint"
+                      : "border-status-safe-border text-status-safe-text hover:bg-status-safe-tint"
+                  }`}
+                >
+                  {statusBusyId === f.id ? "…" : f.is_active ? "Archive" : "Restore"}
+                </button>
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -113,7 +123,10 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetResult, setResetResult] = useState<AdminPasswordResetResult | null>(null);
 
-  const [deleteTarget, setDeleteTarget] = useState<AdminFacility | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+
+  const activeFacilities = facilities.filter((f) => f.is_active);
+  const archivedFacilities = facilities.filter((f) => !f.is_active);
 
   function loadFacilities() {
     setLoading(true);
@@ -253,7 +266,7 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
         <div className="bg-white border border-border rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border flex items-center justify-between">
             <h3 className="font-semibold text-foreground">Facilities</h3>
-            <span className="text-[13px] text-muted-foreground">{facilities.length} total</span>
+            <span className="text-[13px] text-muted-foreground">{activeFacilities.length} active</span>
           </div>
 
           {loading && (
@@ -291,107 +304,53 @@ export function AdminDashboardScreen({ user, onLogout }: { user: SessionUser; on
                   </button>
                 </div>
               )}
-              <table className="w-full text-[14px]">
-                <thead>
-                  <tr className="border-b border-border bg-[#F8F9FB]">
-                    {["Facility", "Type", "Account(s)", "Profile", "Status", ""].map((h) => (
-                      <th key={h} className="text-left py-3 px-4 text-[12px] font-bold uppercase tracking-wide text-muted-foreground">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {facilities.map((f) => (
-                    <tr key={f.id} className="border-b border-border last:border-0">
-                      <td className="py-3 px-4 font-semibold text-foreground">{f.name}</td>
-                      <td className="py-3 px-4 text-muted-foreground capitalize">{f.facility_type}</td>
-                      <td className="py-3 px-4">
-                        {f.accounts.length === 0 ? (
-                          <span className="text-muted-foreground">—</span>
-                        ) : (
-                          f.accounts.map((a) => (
-                            <div key={a.id} className="flex items-center gap-1.5 py-0.5">
-                              <div className="font-mono text-[13px] text-foreground">
-                                {a.email}
-                                {a.must_change_password && (
-                                  <span className="ml-1.5 font-sans text-[12px] text-status-watch-text">(pending first login)</span>
-                                )}
-                              </div>
-                              <button
-                                onClick={() => handleResetPassword(a)}
-                                disabled={resetBusyId === a.id}
-                                title="Reset password"
-                                className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-[12px] font-semibold text-muted-foreground hover:text-primary hover:bg-primary-tint transition-colors disabled:opacity-60"
-                              >
-                                <KeyRound size={11} /> {resetBusyId === a.id ? "…" : "Reset"}
-                              </button>
-                            </div>
-                          ))
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-semibold border ${
-                            f.profile_completed ? STATUS_STYLES.safe.badge : STATUS_STYLES.watch.badge
-                          }`}
-                        >
-                          {f.profile_completed ? "Complete" : "Incomplete"}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-semibold border ${
-                            f.is_active ? STATUS_STYLES.safe.badge : STATUS_STYLES.critical.badge
-                          }`}
-                        >
-                          {f.is_active ? "Active" : "Deactivated"}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleToggleActive(f)}
-                            disabled={statusBusyId === f.id}
-                            className={`h-7 px-3 rounded-md text-[13px] font-semibold border transition-colors disabled:opacity-60 ${
-                              f.is_active
-                                ? "border-status-critical-border text-status-critical-text hover:bg-status-critical-tint"
-                                : "border-status-safe-border text-status-safe-text hover:bg-status-safe-tint"
-                            }`}
-                          >
-                            {statusBusyId === f.id ? "…" : f.is_active ? "Deactivate" : "Reactivate"}
-                          </button>
-                          {/* Deletion is only ever reachable for an already-deactivated
-                              facility — not just disabled, not rendered at all for an
-                              active one, so there's no path to it without the
-                              deactivate step happening first. */}
-                          {!f.is_active && (
-                            <button
-                              onClick={() => setDeleteTarget(f)}
-                              title="Delete facility"
-                              className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-status-critical-text hover:border-status-critical-border hover:bg-status-critical-tint transition-colors"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {activeFacilities.length === 0 ? (
+                <div className="p-8 text-center text-[14px] text-muted-foreground">No active facilities.</div>
+              ) : (
+                <FacilityTable
+                  facilities={activeFacilities}
+                  statusBusyId={statusBusyId}
+                  resetBusyId={resetBusyId}
+                  onToggleActive={handleToggleActive}
+                  onResetPassword={handleResetPassword}
+                />
+              )}
             </>
           )}
         </div>
-      </div>
 
-      {deleteTarget && (
-        <DeleteFacilityModal
-          facility={deleteTarget}
-          onClose={() => setDeleteTarget(null)}
-          onDeleted={loadFacilities}
-        />
-      )}
+        {!loading && !loadError && (
+          <div className="bg-white border border-border rounded-xl overflow-hidden">
+            <button
+              onClick={() => setShowArchived((v) => !v)}
+              className="w-full px-5 py-4 flex items-center justify-between hover:bg-secondary transition-colors"
+            >
+              <h3 className="font-semibold text-foreground">Archived Facilities</h3>
+              <span className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                {archivedFacilities.length} archived
+                <ChevronDown size={16} className={`transition-transform ${showArchived ? "rotate-180" : ""}`} />
+              </span>
+            </button>
+            {showArchived && (
+              archivedFacilities.length === 0 ? (
+                <div className="p-8 text-center text-[14px] text-muted-foreground border-t border-border">
+                  No archived facilities.
+                </div>
+              ) : (
+                <div className="border-t border-border">
+                  <FacilityTable
+                    facilities={archivedFacilities}
+                    statusBusyId={statusBusyId}
+                    resetBusyId={resetBusyId}
+                    onToggleActive={handleToggleActive}
+                    onResetPassword={handleResetPassword}
+                  />
+                </div>
+              )
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

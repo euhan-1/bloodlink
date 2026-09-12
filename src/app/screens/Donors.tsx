@@ -286,9 +286,9 @@ export function ChatScreen() {
                     <button
                       key={bt}
                       onClick={() => setSelectedType(bt)}
-                      className={`py-2 text-[14px] font-display font-bold rounded-lg border transition-colors ${
+                      className={`py-2 text-[14px] font-display font-bold rounded-lg border transition-all duration-200 ease-out ${
                         selectedType === bt
-                          ? "bg-primary text-white border-primary"
+                          ? "bg-primary text-white border-primary scale-110"
                           : "bg-primary-tint text-primary border-transparent hover:border-primary/40"
                       }`}
                     >
@@ -393,9 +393,9 @@ export function ChatScreen() {
                       <button
                         key={r}
                         onClick={() => setSimReply(r)}
-                        className={`flex-1 h-8 text-[13px] font-bold rounded-md border transition-colors ${
+                        className={`flex-1 h-8 text-[13px] font-bold rounded-md border transition-all duration-200 ease-out ${
                           simReply === r
-                            ? "bg-primary text-white border-primary"
+                            ? "bg-primary text-white border-primary scale-105"
                             : "bg-white text-foreground border-amber-300"
                         }`}
                       >

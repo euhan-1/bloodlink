@@ -56,11 +56,11 @@ export const STATUS_STYLES: Record<StatusLevel, { badge: string; dot: string; pa
 };
 
 export const EXPIRED_STYLE = {
-  badge: "bg-gray-100 text-gray-600 border-gray-300",
+  badge: "bg-gray-100 text-foreground border-gray-300",
   dot: "bg-gray-400",
   panel: "bg-gray-50 border border-gray-200",
   solid: "bg-gray-500 text-white",
-  text: "text-gray-600",
+  text: "text-foreground",
 };
 
 export const EXPIRY_STYLES: Record<ExpiryStatus, { badge: string; dot: string; rowTint: string; panel: string; solid: string; text: string; label: (daysLeft: number) => string }> = {

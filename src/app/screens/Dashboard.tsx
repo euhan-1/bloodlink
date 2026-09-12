@@ -58,12 +58,12 @@ function ExpiryWarningRow({ row }: { row: InventoryUnit }) {
           </span>
           <div>
             <div className="font-mono text-[14px] font-semibold text-foreground">{row.din}</div>
-            <div className="text-gray-600 text-[13px]">{row.component}</div>
+            <div className="text-foreground text-[13px]">{row.component}</div>
           </div>
         </div>
         <div className={`font-bold text-right shrink-0 ${style.text}`}>
           {status === "expired" ? "Expired" : `${row.daysLeft}d`}
-          {status !== "expired" && <div className="text-gray-600 text-[12px] font-normal">left</div>}
+          {status !== "expired" && <div className="text-foreground text-[12px] font-normal">left</div>}
         </div>
       </div>
       <div className="mt-2 pt-2 border-t border-black/5">
@@ -109,7 +109,7 @@ function ForecastTooltip({
       <div className="font-bold text-foreground mb-0.5">{label}</div>
       <div className="text-foreground">{d.units} units</div>
       {d.lower !== null && d.upper !== null && (
-        <div className="text-gray-500 text-[12px]">
+        <div className="text-foreground text-[12px]">
           Likely range: {d.lower}–{d.upper}
         </div>
       )}
@@ -117,7 +117,7 @@ function ForecastTooltip({
   );
 }
 
-type InventorySummaryRow = { blood_type: string; minimum_units: number; units: number };
+type InventorySummaryRow = { blood_type: string; minimum_units: number; maximum_units: number; units: number };
 
 type ForecastAlert = {
   type: string;
@@ -377,17 +377,17 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
               <h2 className={`font-display font-extrabold text-[30px] leading-tight tracking-tight text-balance ${STATUS_STYLES[heroStatus].text}`}>
                 {heroHeadline}
               </h2>
-              <p className="text-[15px] text-gray-600 mt-1.5">{heroDetail}</p>
+              <p className="text-[15px] text-foreground mt-1.5">{heroDetail}</p>
             </div>
 
             <div className="flex items-center gap-6 sm:gap-8 flex-wrap">
               <div>
-                <div className="text-[12px] font-bold uppercase tracking-wide text-gray-500 mb-1">Total Units</div>
+                <div className="text-[12px] font-bold uppercase tracking-wide text-foreground mb-1">Total Units</div>
                 <div className="text-2xl font-display font-bold tabular-nums text-foreground">{totalUnits}</div>
               </div>
               <div className="w-px h-10 bg-border hidden sm:block" />
               <div>
-                <div className="text-[12px] font-bold uppercase tracking-wide text-gray-500 mb-1">Expiring ≤7d</div>
+                <div className="text-[12px] font-bold uppercase tracking-wide text-foreground mb-1">Expiring ≤7d</div>
                 <div className="text-2xl font-display font-bold tabular-nums text-foreground">{expiringRows.length}</div>
               </div>
               <div className="w-px h-10 bg-border hidden sm:block" />
@@ -398,7 +398,7 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                     : undefined
                 }
               >
-                <div className="text-[12px] font-bold uppercase tracking-wide text-gray-500 mb-1">Active Requests</div>
+                <div className="text-[12px] font-bold uppercase tracking-wide text-foreground mb-1">Active Requests</div>
                 <div className="text-2xl font-display font-bold tabular-nums text-foreground">
                   {activeRequestsCount === null ? "…" : activeRequestsCount}
                 </div>
@@ -444,13 +444,26 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h3 className="font-semibold text-foreground text-[17px]">Inventory by Blood Type</h3>
-                <p className="text-[15px] text-gray-600 mt-0.5">
-                  Current units vs. minimum threshold
+                <p className="text-[15px] text-foreground mt-0.5">
+                  Current units vs. minimum/maximum thresholds
                 </p>
               </div>
-              <div className="flex gap-3 text-[14px] font-semibold">
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-primary inline-block" /> Current</span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-gray-400 inline-block" /> Minimum</span>
+              {/* Swatch colors are picked to exactly match what's actually
+                  drawn in the chart below, not approximated with a generic
+                  Tailwind shade — "Current" uses the same teal as a
+                  fully-stocked bar (its most common real state; watch/critical
+                  types still render amber/red in the chart itself), and
+                  Minimum/Maximum reuse their bars' literal hex values. */}
+              <div className="flex gap-3.5 text-[15px] font-semibold text-foreground">
+                <span className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 rounded-sm inline-block" style={{ backgroundColor: "#0F766E" }} /> Current
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 rounded-sm inline-block" style={{ backgroundColor: "#A9A29A" }} /> Minimum
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 rounded-sm inline-block border-2 border-info" style={{ backgroundColor: "#DCE7FB" }} /> Maximum
+                </span>
               </div>
             </div>
             {/* flex-1 lets the chart claim whatever height the grid row
@@ -464,23 +477,25 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                 <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
                 <XAxis
                   dataKey="blood_type"
-                  tick={{ fontSize: 13, fontFamily: "Plus Jakarta Sans", fill: "#4B5563", fontWeight: 600 }}
+                  tick={{ fontSize: 15, fontFamily: "Plus Jakarta Sans", fill: "#1C1917", fontWeight: 700 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 12, fontFamily: "Plus Jakarta Sans", fill: "#6B7280" }}
+                  tick={{ fontSize: 13, fontFamily: "Plus Jakarta Sans", fill: "#1C1917", fontWeight: 700 }}
                   axisLine={false}
                   tickLine={false}
-                  width={30}
+                  width={34}
                 />
                 <Tooltip
                   contentStyle={{
                     border: "1px solid #E5E7EB",
                     borderRadius: "8px",
-                    fontSize: 13,
+                    fontSize: 14,
                     fontFamily: "Plus Jakarta Sans",
                   }}
+                  labelStyle={{ color: "#1C1917", fontWeight: 700, marginBottom: 4 }}
+                  itemStyle={{ color: "#1C1917", fontWeight: 700 }}
                   cursor={{ fill: "#F9FAFB" }}
                 />
                 <Bar dataKey="units" radius={[4, 4, 0, 0]} name="Units">
@@ -493,6 +508,7 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                     neutral scale used everywhere else and was nearly
                     invisible against the white chart background. */}
                 <Bar dataKey="minimum_units" fill="#A9A29A" radius={[4, 4, 0, 0]} name="Minimum" />
+                <Bar dataKey="maximum_units" fill="#DCE7FB" stroke="#1D4ED8" strokeWidth={1.5} radius={[4, 4, 0, 0]} name="Maximum" />
               </BarChart>
             </ResponsiveContainer>
             </div>
@@ -534,12 +550,12 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                   </span>
                 )}
                 {dashboardData.forecast_source === "none" && (
-                  <span className="flex items-center gap-1 text-[13px] font-bold text-gray-600 bg-secondary px-2 py-0.5 rounded-full border border-border">
+                  <span className="flex items-center gap-1 text-[13px] font-bold text-foreground bg-secondary px-2 py-0.5 rounded-full border border-border">
                     <Clock size={13} /> Collecting Data
                   </span>
                 )}
               </div>
-              <p className="text-[15px] text-gray-600 mb-4">
+              <p className="text-[15px] text-foreground mb-4">
                 Total units across every blood type combined
                 {dashboardData.forecast_source === "synthetic_model_stand_in" && " — synthetic, not this facility's real history — see banner below"}
                 . A steady total doesn't mean every type is steady.
@@ -574,13 +590,13 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
               )}
 
               {forecastLoading && (
-                <div className="py-8 text-center text-[15px] text-gray-600">Loading forecast…</div>
+                <div className="py-8 text-center text-[15px] text-foreground">Loading forecast…</div>
               )}
               {!forecastLoading && forecastError && (
                 <div className="py-8 text-center text-[15px] text-red-700">Failed to load: {forecastError}</div>
               )}
               {!forecastLoading && !forecastError && dashboardData.forecast_source === "none" && (
-                <div className="py-6 text-center text-[15px] text-gray-600 leading-relaxed">
+                <div className="py-6 text-center text-[15px] text-foreground leading-relaxed">
                   Not enough history yet to forecast a trend.
                   <br />
                   Collecting daily snapshots: <strong className="text-foreground">{dashboardData.days_of_history}</strong> of{" "}
@@ -614,12 +630,12 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                         // evenly spaced without overlapping.
                         interval={0}
                         tickFormatter={(value: string) => (value === "Today" ? "Today" : value.replace("Day ", ""))}
-                        tick={{ fontSize: 12, fill: "#6B7280", fontFamily: "Plus Jakarta Sans", fontWeight: 600 }}
+                        tick={{ fontSize: 12, fill: "#1C1917", fontFamily: "Plus Jakarta Sans", fontWeight: 700 }}
                         axisLine={false}
                         tickLine={false}
                       />
                       <YAxis
-                        tick={{ fontSize: 11, fill: "#9CA3AF", fontFamily: "Plus Jakarta Sans" }}
+                        tick={{ fontSize: 11, fill: "#1C1917", fontFamily: "Plus Jakarta Sans", fontWeight: 700 }}
                         axisLine={false}
                         tickLine={false}
                         width={34}
@@ -664,7 +680,7 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                       inline on the chart — this data tends to sit flat and
                       close to its own minimum, so an inline label kept
                       landing right on top of the last data point. */}
-                  <div className="flex items-center gap-4 text-[12px] font-semibold text-gray-600 -mt-1 mb-1">
+                  <div className="flex items-center gap-4 text-[12px] font-semibold text-foreground -mt-1 mb-1">
                     <span className="flex items-center gap-1.5">
                       <span
                         className="w-3 h-0.5 rounded-full inline-block"
@@ -679,13 +695,13 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                       </span>
                     )}
                   </div>
-                  <p className="text-[12.5px] text-gray-500 leading-snug">
+                  <p className="text-[12.5px] text-foreground leading-snug">
                     {hasInterval
                       ? `The shaded band is a ${Math.round((dashboardData.interval_confidence as number) * 100)}% prediction interval — wider with less history on file or further into the future, narrowing as more real days accumulate.`
                       : "Line shows the projected trend for total units on file."}
                   </p>
                   {dashboardData.alerts.length === 0 && (
-                    <p className="mt-2 text-[14px] text-gray-600">
+                    <p className="mt-2 text-[14px] text-foreground">
                       {dashboardData.forecast_source === "synthetic_model_stand_in"
                         ? "No blood types currently trending toward shortage, based on the synthetic reference model."
                         : `No blood types currently trending toward shortage, based on ${dashboardData.days_of_history} days of history.`}
@@ -803,14 +819,9 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                 <h3 className="font-semibold text-foreground text-[17px]">Predictive Shortage Alert</h3>
               </div>
 
-              {/* justify-center lets a short list (or an empty state) sit
-                  centered in whatever height the grid row stretched this
-                  card to, instead of stranding it at the top with a wall of
-                  blank space below — degrades to normal top-aligned flow
-                  once real content is tall enough to fill the space itself. */}
-              <div className="flex-1 flex flex-col justify-center">
+              <div className="flex-1 flex flex-col">
                 {forecastLoading && (
-                  <div className="py-8 text-center text-[15px] text-gray-600">Loading…</div>
+                  <div className="py-8 text-center text-[15px] text-foreground">Loading…</div>
                 )}
                 {!forecastLoading && forecastError && (
                   <div className="py-8 text-center text-[15px] text-red-700">Failed to load: {forecastError}</div>
@@ -821,7 +832,7 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                       <Clock size={22} className="text-muted-foreground" />
                     </div>
                     <div className="font-semibold text-foreground mb-1">Not enough data yet</div>
-                    <p className="text-[14px] text-gray-600 leading-relaxed max-w-[240px]">
+                    <p className="text-[14px] text-foreground leading-relaxed max-w-[240px]">
                       {dashboardData.days_of_history} of {dashboardData.min_days_required} days of history collected.
                       Shortage predictions require a real trend, not a guess.
                     </p>
@@ -833,7 +844,7 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                       <CheckCircle size={22} className="text-status-safe-text" />
                     </div>
                     <div className="font-semibold text-foreground mb-1">No shortages predicted</div>
-                    <p className="text-[14px] text-gray-600 leading-relaxed max-w-[240px]">
+                    <p className="text-[14px] text-foreground leading-relaxed max-w-[240px]">
                       {dashboardData.forecast_source === "synthetic_model_stand_in"
                         ? "Based on the synthetic reference model."
                         : `Based on a ${dashboardData.days_of_history}-day trend.`}
@@ -853,7 +864,7 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                             <div className={`text-[15px] font-bold mb-0.5 ${STATUS_STYLES[level].text}`}>
                               {alert.severity === "critical" ? "Critical shortage likely" : "Shortage warning"}
                             </div>
-                            <div className="text-[14px] text-gray-700 leading-snug">{alert.reason}</div>
+                            <div className="text-[14px] text-foreground leading-snug">{alert.reason}</div>
                           </div>
                         </div>
                       );
@@ -884,13 +895,13 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                 </span>
               )}
             </div>
-            <p className="text-[15px] text-gray-600 mb-4">
+            <p className="text-[15px] text-foreground mb-4">
               Current stock vs. minimum threshold, per type. Sending a request is never automatic — confirm each one yourself.
             </p>
 
-            <div className="flex-1 flex flex-col justify-center">
+            <div className="flex-1 flex flex-col">
               {forecastLoading && (
-                <div className="py-8 text-center text-[15px] text-gray-600">Loading…</div>
+                <div className="py-8 text-center text-[15px] text-foreground">Loading…</div>
               )}
               {!forecastLoading && forecastError && (
                 <div className="py-8 text-center text-[15px] text-red-700">Failed to load: {forecastError}</div>
@@ -901,7 +912,7 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                     <CheckCircle size={22} className="text-status-safe-text" />
                   </div>
                   <div className="font-semibold text-foreground mb-1">All blood types fully stocked</div>
-                  <p className="text-[14px] text-gray-600 leading-relaxed max-w-[280px]">
+                  <p className="text-[14px] text-foreground leading-relaxed max-w-[280px]">
                     Every type is at or above its minimum threshold. No action needed right now.
                   </p>
                 </div>
@@ -909,7 +920,7 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
               {!forecastLoading && !forecastError && dashboardData.action_prompts.length > 0 && (
                 <div className="space-y-3">
                   {dashboardData.action_prompts.map((prompt) => (
-                    <div key={prompt.blood_type} className="rounded-lg p-3 flex gap-3 bg-status-critical-tint border border-status-critical-border">
+                    <div key={prompt.blood_type} className="rounded-lg p-3 flex items-start gap-3 bg-status-critical-tint border border-status-critical-border">
                       <div className="w-8 h-8 rounded-md font-bold text-[15px] flex items-center justify-center shrink-0 bg-status-critical text-white">
                         {prompt.blood_type}
                       </div>
@@ -917,7 +928,7 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                         <div className="text-[15px] font-bold mb-0.5 text-status-critical-text">
                           {prompt.units} of {prompt.minimum_units} units — short by {prompt.deficit}
                         </div>
-                        <div className="text-[14px] text-gray-700 leading-snug mb-2">{prompt.message}</div>
+                        <div className="text-[14px] text-foreground leading-snug mb-2">{prompt.message}</div>
                         <button
                           onClick={() => onRequestBloodType(prompt.blood_type)}
                           className="flex items-center gap-1.5 h-8 px-3 bg-primary text-white rounded-lg text-[13px] font-semibold hover:bg-primary-hover transition-colors"
@@ -941,9 +952,9 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
             </div>
             <h3 className="font-semibold text-foreground text-[17px]">Expiry Warnings</h3>
           </div>
-          <div className="flex-1 flex flex-col justify-center">
+          <div className="flex-1 flex flex-col">
           {expiryLoading && (
-            <div className="py-8 text-center text-[15px] text-gray-600">Loading…</div>
+            <div className="py-8 text-center text-[15px] text-foreground">Loading…</div>
           )}
           {!expiryLoading && expiryError && (
             <div className="py-8 text-center text-[15px] text-red-700">Failed to load: {expiryError}</div>
@@ -954,7 +965,7 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                 <CheckCircle size={22} className="text-status-safe-text" />
               </div>
               <div className="font-semibold text-foreground mb-1">Nothing expiring soon</div>
-              <p className="text-[14px] text-gray-600 leading-relaxed max-w-[220px]">
+              <p className="text-[14px] text-foreground leading-relaxed max-w-[220px]">
                 No units are inside the near-expiry window right now.
               </p>
             </div>
