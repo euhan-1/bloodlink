@@ -149,13 +149,14 @@ export async function changePassword(resetToken: string, newPassword: string): P
   return data.user as SessionUser;
 }
 
-// Self-service "forgot password" — an existing, already-active facility
-// account requesting its own reset, as opposed to login's must_change_password
-// branch (an admin-issued temp password). Returns the exact same shape so the
-// frontend can feed either one into the same set-new-password form.
-export type ForgotPasswordResult = { resetToken: string; email: string; facilityName: string };
-
-export async function requestPasswordReset(email: string): Promise<ForgotPasswordResult> {
+// Self-service "forgot password" — genuinely email-based now, separate from
+// login's must_change_password branch (an admin-issued temp password, still
+// handled by changePassword/apiChangePassword above). The backend always
+// returns the same generic message regardless of whether the email actually
+// matched an account — see server/main.py's _FORGOT_PASSWORD_RESPONSE — so
+// there is deliberately no email/facilityName/token in this response to
+// carry into an immediate set-new-password step the way the old flow did.
+export async function requestPasswordReset(email: string): Promise<{ message: string }> {
   const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -164,8 +165,23 @@ export async function requestPasswordReset(email: string): Promise<ForgotPasswor
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
-  const data = await res.json();
-  return { resetToken: data.reset_token, email: data.email, facilityName: data.facility_name };
+  return res.json();
+}
+
+// Completes a reset started by requestPasswordReset, using the token from
+// the emailed link's ?token= query param — not an Authorization header,
+// since this token is a single-use DB row (see password_reset_requests), not
+// a JWT the way the admin-onboarding reset_token is.
+export async function resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+  const res = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
 }
 
 export type CompleteProfileBody = {

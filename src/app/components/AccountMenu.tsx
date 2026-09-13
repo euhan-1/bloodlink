@@ -388,7 +388,13 @@ export function AccountMenu({ user, onLogout }: { user: SessionUser; onLogout: (
         <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
           <User size={16} className="text-primary" />
         </div>
-        <div className="text-[13px] text-left">
+        {/* Hidden below md — this text has no width cap, so at narrow/split
+            window widths it was forcing the whole header (and therefore the
+            whole page) to overflow horizontally instead of the header just
+            shrinking to fit. Avatar + chevron alone still identify the
+            control; the menu itself still shows the full email/facility
+            name once opened. */}
+        <div className="hidden md:block text-[13px] text-left">
           <div className="font-semibold text-foreground leading-tight">{user.email}</div>
           <div className="text-muted-foreground leading-tight">{isAdmin ? "Administrator" : user.facility_name}</div>
         </div>

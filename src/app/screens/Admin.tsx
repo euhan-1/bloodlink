@@ -11,8 +11,10 @@ import { AccountMenu } from "../components/AccountMenu";
 
 // Shared by both the active-facilities panel and the collapsible archived
 // one below it — same columns, same row actions, just fed a different slice
-// of the list (is_active true/false) so "Archive"/"Restore" and the status
-// badge fall out of each row's own data rather than needing two versions.
+// of the list (is_active true/false) so "Deactivate"/"Activate" and the
+// status badge fall out of each row's own data rather than needing two
+// versions. Still archive-only under the hood — is_active toggle, no
+// permanent delete path exists anywhere in the app.
 function FacilityTable({
   facilities, statusBusyId, resetBusyId, onToggleActive, onResetPassword,
 }: {
@@ -91,7 +93,7 @@ function FacilityTable({
                       : "border-status-safe-border text-status-safe-text hover:bg-status-safe-tint"
                   }`}
                 >
-                  {statusBusyId === f.id ? "…" : f.is_active ? "Archive" : "Restore"}
+                  {statusBusyId === f.id ? "…" : f.is_active ? "Deactivate" : "Activate"}
                 </button>
               </div>
             </td>

@@ -106,22 +106,30 @@
      red's general family with a status color. */
   --status-safe: #0F766E;
   --status-safe-text: #115E59;
-  --status-safe-tint: #E6F5F3;
-  /* Borders below are blended 66% of the way from the original light
-     tint-matched border toward that status's own --*-text color, measured
-     via WCAG relative-luminance contrast against the paired tint (not the
-     page background — that's what a border actually sits on in every real
-     usage here). The original values measured ~1.25-1.34:1 against their
-     own tint — effectively invisible; these clear ~3.2-3.7:1. */
-  --status-safe-border: #4C8B86;
+  /* Richer/more saturated than the original near-white tints (#E6F5F3-style)
+     — same hue, same 66%-toward-text border-blend methodology, just a
+     visibly present color instead of an almost-invisible wash. Borders
+     re-measured against these new tints clear ~3.3-3.8:1, same as before. */
+  --status-safe-tint: #D6F3EC;
+  --status-safe-border: #2F7A73;
   --status-watch: #B8860B;
   --status-watch-text: #7C5C08;
-  --status-watch-tint: #FAF1DA;
-  --status-watch-border: #9F843B;
+  --status-watch-tint: #F5E4B8;
+  --status-watch-border: #8C6B1F;
   --status-critical: #BD4024;
   --status-critical-text: #96331D;
-  --status-critical-tint: #FCEEE7;
-  --status-critical-border: #B56752;
+  --status-critical-tint: #FADBCF;
+  --status-critical-border: #A8503A;
+
+  /* Dashboard-only gradient overlay for the three status panels (StatusTypeTile,
+     the hero Supply Status banner, the forecast alert list) — a diagonal
+     lighten-to-tint sweep instead of a flat fill, applied via background-image
+     so it layers over the flat --status-*-tint background-color underneath
+     rather than replacing component code per-usage (see the compound
+     selectors in @layer base below). */
+  --status-safe-panel-gradient: linear-gradient(135deg, #EFFBF7 0%, #C9EEE3 100%);
+  --status-watch-panel-gradient: linear-gradient(135deg, #FCF6E2 0%, #F0DBA0 100%);
+  --status-critical-panel-gradient: linear-gradient(135deg, #FEF1EB 0%, #F7CBB6 100%);
 
   /* Secondary accent — "informational, not a status" (blood-type
      compatibility suggestions, reason-for-request tags, simulation
@@ -135,16 +143,20 @@
      against --info-tint, now ~4:1. */
   --info-border: #5673C6;
 
-  /* Elevation — card shadow bumped from a near-invisible hairline lift to a
-     real, visible one now that --border reads as structure on its own;
-     still two layers (tight contact shadow + softer ambient one) so it
-     reads as a card lifted off the page rather than a flat drawn-on line.
-     Button shadows are tinted with --role-accent (via --role-accent-rgb)
-     instead of flat black, so they reinforce whichever brand color is
-     active — oxblood or navy — rather than looking like a generic UI-kit
-     default, or a navy button glowing pink. Card shadows stay neutral since
-     they sit behind many colors regardless of role. */
-  --shadow-card: 0 1px 3px rgba(28, 25, 23, 0.12), 0 6px 16px rgba(28, 25, 23, 0.10);
+  /* Elevation — a genuinely layered "soft 3D" stack: a tight contact shadow
+     right at the card edge, a mid-distance layer, and a wide soft ambient
+     glow underneath — the combination that reads as a card actually
+     floating off the page, not a flat drawn-on line. Button shadows are
+     tinted with --role-accent (via --role-accent-rgb) instead of flat
+     black, so they reinforce whichever brand color is active — oxblood or
+     navy — rather than looking like a generic UI-kit default, or a navy
+     button glowing pink. Card shadows stay neutral since they sit behind
+     many colors regardless of role. */
+  --shadow-card:
+    0 1px 2px rgba(28, 25, 23, 0.05),
+    0 3px 6px rgba(28, 25, 23, 0.06),
+    0 10px 20px rgba(28, 25, 23, 0.07),
+    0 22px 44px rgba(28, 25, 23, 0.06);
   --shadow-button: 0 1px 2px rgba(28, 25, 23, 0.06), 0 2px 6px -1px rgba(var(--role-accent-rgb), 0.25);
   --shadow-button-hover: 0 2px 4px rgba(28, 25, 23, 0.07), 0 4px 12px -2px rgba(var(--role-accent-rgb), 0.32);
   --shadow-button-active: 0 1px 1px rgba(28, 25, 23, 0.06), 0 1px 3px rgba(var(--role-accent-rgb), 0.22);
@@ -265,7 +277,12 @@
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* Set independently of --radius (not "+4px") so the card-level rounding
+     bump lives in one place and doesn't ripple through the smaller sm/md/lg
+     steps used by inputs, tags, and small buttons. Every rounded-xl card
+     app-wide (Dashboard, Inventory, Requests, Admin, Login) gets this
+     automatically — no per-component class changes needed. */
+  --radius-xl: 1.25rem;
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -379,6 +396,21 @@
      after this one). */
   .bg-white.border.border-border.rounded-xl {
     box-shadow: var(--shadow-card);
+  }
+
+  /* Dashboard's three status-panel usages (StatusTypeTile, the hero Supply
+     Status banner, the forecast alert list) — a diagonal gradient laid over
+     the flat --status-*-tint background-color each already has, so no
+     component code changes, just these three selectors matching the exact
+     class combination statusTokens.ts's STATUS_STYLES[status].panel emits. */
+  .bg-status-safe-tint.border.border-status-safe-border {
+    background-image: var(--status-safe-panel-gradient);
+  }
+  .bg-status-watch-tint.border.border-status-watch-border {
+    background-image: var(--status-watch-panel-gradient);
+  }
+  .bg-status-critical-tint.border.border-status-critical-border {
+    background-image: var(--status-critical-panel-gradient);
   }
 }
 

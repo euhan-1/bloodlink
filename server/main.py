@@ -1,8 +1,10 @@
 import csv
+import hashlib
 import io
 import json
 import math
 import os
+import secrets
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
@@ -16,6 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 import auth
+import email_service
 from database import engine
 
 load_dotenv()
@@ -78,6 +81,17 @@ def _normalize_origin(raw: str) -> str:
 
 
 CORS_ALLOWED_ORIGINS = [_normalize_origin(o) for o in os.environ.get("CORS_ALLOWED_ORIGINS", "*").split(",")]
+
+# Base URL of the deployed frontend, used only to build the link inside a
+# password-reset email (e.g. "{FRONTEND_BASE_URL}/reset-password?token=...").
+# Defaults to local dev so this works out of the box before it's set in a
+# real deployment's environment.
+FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
+
+# Self-service reset links are meant to be used within minutes of being
+# requested — much shorter-lived than a normal session, and long enough that
+# an email arriving a little late still works.
+PASSWORD_RESET_LINK_EXPIRY = timedelta(hours=1)
 
 VALID_FACILITY_TYPES = {"hospital", "bloodbank"}
 
@@ -2478,24 +2492,55 @@ class ForgotPasswordBody(BaseModel):
     email: EmailStr
 
 
+# Fixed, identical response for every outcome of POST /auth/forgot-password —
+# whether the email matched a real account, an inactive facility, an admin
+# account, or nothing at all. Returning it as one constant (rather than
+# building the string at each call site) makes it structurally impossible for
+# a future edit to accidentally introduce a wording difference that leaks
+# which case occurred.
+_FORGOT_PASSWORD_RESPONSE = {
+    "message": "If an account with that email exists, a password reset link has been sent."
+}
+
+
+def _send_password_reset_email(to_email: str, facility_name: Optional[str], reset_url: str) -> None:
+    """Isolated so the raw reset_url — the one place the raw token exists
+    outside this process's memory — only ever flows into this one function
+    call, never into a log line, a print(), or an HTTP response."""
+    greeting = f"the {facility_name} account" if facility_name else "your BloodLink account"
+    html = f"""
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color: #8C1B3A;">Reset your BloodLink password</h2>
+      <p>We received a request to reset the password for {greeting}.</p>
+      <p>
+        <a href="{reset_url}" style="display: inline-block; padding: 10px 20px; background: #8C1B3A; color: #fff; text-decoration: none; border-radius: 6px;">
+          Set a new password
+        </a>
+      </p>
+      <p style="color: #666; font-size: 13px;">This link expires in 1 hour and can only be used once. If you didn't request this, you can safely ignore this email.</p>
+    </div>
+    """
+    email_service.send_email(to=to_email, subject="Reset your BloodLink password", html=html)
+
+
 @app.post("/auth/forgot-password")
 def forgot_password(body: ForgotPasswordBody):
     """Self-service reset for an existing, already-verified facility account
     that simply forgot its password — distinct from admin-provisioned
-    onboarding's forced first-login reset (POST /admin/facilities), though it
-    reuses the exact same reset_token + POST /auth/change-password machinery,
-    just issued from an email lookup instead of a login attempt.
+    onboarding's forced first-login reset (POST /admin/facilities), which
+    still uses the separate JWT-based reset_token + POST /auth/change-password
+    machinery untouched by this endpoint.
 
-    Only ever issues a token for an email already tied to a real, active
-    facility account — never creates one. That keeps the no-self-registration
-    rule intact: this can get someone back into an account they already have,
-    never open a new one. Admin accounts (facility_id IS NULL) have no
-    self-service path here either — same seed-script-only rule as ever.
+    Deliberately reveals nothing about whether the email matched anything —
+    same response, same status code, every time (see _FORGOT_PASSWORD_RESPONSE)
+    — so this can't be used to enumerate registered emails. Only ever emails a
+    link for an email already tied to a real, active facility account; never
+    creates one (no self-registration exists anywhere in this app) and never
+    for an admin account (same seed-script-only rule as ever for those).
 
-    No email provider is wired up (same limitation as admin-issued temp
-    passwords), so the token is returned directly in this response instead of
-    delivered out of band — the frontend carries it straight into the same
-    set-new-password form the forced-reset flow uses.
+    The raw token is generated here, emailed once via Resend, and then never
+    seen again by this process — only its SHA-256 hash is stored, so a
+    database read alone can never be used to complete a reset.
     """
     with engine.connect() as conn:
         user = conn.execute(
@@ -2510,11 +2555,82 @@ def forgot_password(body: ForgotPasswordBody):
             {"email": body.email},
         ).mappings().first()
 
-    if user is None or user["facility_id"] is None or user["facility_is_active"] is False:
-        raise HTTPException(status_code=404, detail="no active facility account found for that email")
+    eligible = user is not None and user["facility_id"] is not None and user["facility_is_active"] is not False
+    if eligible:
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+        expires_at = datetime.now(timezone.utc) + PASSWORD_RESET_LINK_EXPIRY
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO password_reset_requests (user_id, token_hash, expires_at) "
+                    "VALUES (:user_id, :token_hash, :expires_at)"
+                ),
+                {"user_id": user["id"], "token_hash": token_hash, "expires_at": expires_at},
+            )
+        reset_url = f"{FRONTEND_BASE_URL}/reset-password?token={raw_token}"
+        try:
+            _send_password_reset_email(user["email"], user["facility_name"], reset_url)
+        except email_service.EmailSendError as e:
+            # Logged without the token/url (see _send_password_reset_email) —
+            # this is the one place a delivery failure is visible at all,
+            # since the response to the client must stay generic regardless.
+            print(f"[auth] password reset email failed for user_id={user['id']}: {e}")
 
-    reset_token = auth.create_password_reset_token(user_id=user["id"], email=user["email"])
-    return {"reset_token": reset_token, "email": user["email"], "facility_name": user["facility_name"]}
+    return _FORGOT_PASSWORD_RESPONSE
+
+
+class ResetPasswordBody(BaseModel):
+    token: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def _password_min_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("password must be at least 8 characters")
+        return v
+
+
+@app.post("/auth/reset-password")
+def reset_password(body: ResetPasswordBody):
+    """Completes a self-service reset started by POST /auth/forgot-password.
+
+    The token is single-use (used_at is set the moment it's consumed here,
+    inside the same transaction as the password update) and time-limited
+    (expires_at, checked against the DB's own clock) — a link that's already
+    been used or has expired fails with the same generic error either way, so
+    neither case tells an attacker anything more specific than "try again."
+    """
+    token_hash = hashlib.sha256(body.token.encode("utf-8")).hexdigest()
+    with engine.begin() as conn:
+        reset_request = conn.execute(
+            text(
+                """
+                SELECT id, user_id, expires_at, used_at FROM password_reset_requests
+                WHERE token_hash = :token_hash
+                """
+            ),
+            {"token_hash": token_hash},
+        ).mappings().first()
+
+        if (
+            reset_request is None
+            or reset_request["used_at"] is not None
+            or reset_request["expires_at"] < datetime.now(timezone.utc)
+        ):
+            raise HTTPException(status_code=400, detail="this password reset link is invalid or has expired")
+
+        conn.execute(
+            text("UPDATE users SET password_hash = :password_hash WHERE id = :id"),
+            {"password_hash": auth.hash_password(body.new_password), "id": reset_request["user_id"]},
+        )
+        conn.execute(
+            text("UPDATE password_reset_requests SET used_at = now() WHERE id = :id"),
+            {"id": reset_request["id"]},
+        )
+
+    return {"message": "Password updated. You can now log in with your new password."}
 
 
 @app.post("/auth/change-password")

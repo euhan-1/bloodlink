@@ -14,6 +14,7 @@ import { RequestsScreen } from "./screens/Requests";
 import { ChatScreen } from "./screens/Donors";
 import { AdminDashboardScreen } from "./screens/Admin";
 import { LoginScreen } from "./screens/Login";
+import { ResetPasswordScreen } from "./screens/ResetPassword";
 import { CompleteProfileScreen } from "./screens/CompleteProfile";
 import {
   AlertTriangle, MapPin,
@@ -68,7 +69,7 @@ function TopNav({
               }`}
             >
               {item.icon}
-              {item.label}
+              <span className="hidden md:inline">{item.label}</span>
             </button>
           ))}
         </nav>
@@ -194,6 +195,19 @@ export default function App() {
     apiLogout();
     setCurrentUser(null);
     setScreen("dashboard");
+  }
+
+  // Reachable regardless of session state — a person clicking the emailed
+  // reset link is, by definition, not necessarily logged out on this device
+  // (a different account could still have an active session), so this check
+  // comes before the currentUser branch below rather than being folded into
+  // the logged-out case.
+  if (window.location.pathname === "/reset-password") {
+    return (
+      <div style={{ fontFamily: "var(--font-body)" }}>
+        <ResetPasswordScreen />
+      </div>
+    );
   }
 
   if (!currentUser) {

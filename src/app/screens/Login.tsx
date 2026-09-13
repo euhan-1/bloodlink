@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, FlaskConical, RefreshCw, ShieldCheck, Zap } from "lucide-react";
+import { Building2, CheckCircle, FlaskConical, RefreshCw, ShieldCheck, Zap } from "lucide-react";
 import {
   login as apiLogin, changePassword as apiChangePassword, requestPasswordReset,
 } from "../lib/api";
@@ -20,11 +20,11 @@ const DEMO_ACCOUNTS = {
 
 type DemoAccountType = keyof typeof DEMO_ACCOUNTS;
 
-// "temp_password": an admin just created/reset this account and issued a
-// one-time password — reused as-is by /auth/change-password's ChangePasswordBody.
-// "self_service": the facility itself requested this via "Forgot password?" —
-// same token shape and same set-new-password form, different framing copy.
-type PendingReset = { resetToken: string; email: string; facilityName: string; reason: "temp_password" | "self_service" };
+// Only ever produced by an admin creating/resetting an account (a one-time
+// temp password) — the self-service "Forgot password?" flow no longer feeds
+// this at all, since that reset now genuinely goes out by email instead of
+// handing a token straight back to the requester (see forgotSent below).
+type PendingReset = { resetToken: string; email: string; facilityName: string };
 
 export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void }) {
   const [email, setEmail] = useState("");
@@ -38,6 +38,10 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState<string | null>(null);
+  // Set once the request succeeds — the confirmation message stays generic
+  // ("if an account exists...") on purpose, matching the backend's own
+  // refusal to reveal whether the email matched anything.
+  const [forgotSent, setForgotSent] = useState(false);
 
   function handleSelectDemo(type: DemoAccountType) {
     setSelectedDemo(type);
@@ -56,7 +60,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
         // No access token was issued — see api.ts's LoginResult. Nothing to
         // do here but hand off to the forced-reset form; onLogin only fires
         // once that form actually establishes a real session.
-        setPendingReset({ resetToken: result.resetToken, email: result.email, facilityName: result.facilityName, reason: "temp_password" });
+        setPendingReset({ resetToken: result.resetToken, email: result.email, facilityName: result.facilityName });
       } else {
         onLogin(result.user);
       }
@@ -72,10 +76,8 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
     setForgotLoading(true);
     setForgotError(null);
     try {
-      const result = await requestPasswordReset(forgotEmail);
-      setPendingReset({ resetToken: result.resetToken, email: result.email, facilityName: result.facilityName, reason: "self_service" });
-      setForgotMode(false);
-      setForgotEmail("");
+      await requestPasswordReset(forgotEmail);
+      setForgotSent(true);
     } catch (err) {
       setForgotError(err instanceof Error ? err.message : "Failed to request a reset");
     } finally {
@@ -131,53 +133,73 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
               onSuccess={onLogin}
             />
           ) : forgotMode ? (
-            <>
-              <h2 className="font-display text-2xl font-bold text-foreground mb-1">Reset your password</h2>
-              <p className="text-muted-foreground text-sm mb-6">
-                Enter the email address on your facility's account. If it's active, we'll generate a reset code you can use right away — no email needed.
-              </p>
-
-              <form onSubmit={handleForgotSubmit} className="space-y-4">
-                <div>
-                  <label className="text-[14px] font-semibold text-foreground block mb-1.5">
-                    Email address
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    autoComplete="email"
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                    className="w-full h-10 px-3 text-sm border border-border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                  />
+            forgotSent ? (
+              <>
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle size={22} className="text-status-safe-text" />
+                  <h2 className="font-display text-2xl font-bold text-foreground">Check your email</h2>
                 </div>
-
-                {forgotError && (
-                  <div className="text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
-                    {forgotError}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={forgotLoading}
-                  className="w-full h-10 bg-primary text-white text-sm font-semibold rounded-md hover:bg-primary-hover transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
-                >
-                  {forgotLoading ? (
-                    <><RefreshCw size={15} className="animate-spin" /> Requesting…</>
-                  ) : (
-                    "Send me a reset code"
-                  )}
-                </button>
+                <p className="text-muted-foreground text-sm mb-6">
+                  If an account exists for <strong className="text-foreground">{forgotEmail}</strong>, we've sent a
+                  password reset link to it. The link expires in 1 hour and can only be used once.
+                </p>
                 <button
                   type="button"
-                  onClick={() => { setForgotMode(false); setForgotError(null); }}
-                  className="w-full text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => { setForgotMode(false); setForgotSent(false); setForgotEmail(""); }}
+                  className="w-full h-10 bg-primary text-white text-sm font-semibold rounded-md hover:bg-primary-hover transition-colors"
                 >
                   Back to sign in
                 </button>
-              </form>
-            </>
+              </>
+            ) : (
+              <>
+                <h2 className="font-display text-2xl font-bold text-foreground mb-1">Reset your password</h2>
+                <p className="text-muted-foreground text-sm mb-6">
+                  Enter the email address on your facility's account and we'll send you a link to reset your password.
+                </p>
+
+                <form onSubmit={handleForgotSubmit} className="space-y-4">
+                  <div>
+                    <label className="text-[14px] font-semibold text-foreground block mb-1.5">
+                      Email address
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      autoComplete="email"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="w-full h-10 px-3 text-sm border border-border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                    />
+                  </div>
+
+                  {forgotError && (
+                    <div className="text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                      {forgotError}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="w-full h-10 bg-primary text-white text-sm font-semibold rounded-md hover:bg-primary-hover transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    {forgotLoading ? (
+                      <><RefreshCw size={15} className="animate-spin" /> Sending…</>
+                    ) : (
+                      "Send reset link"
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setForgotMode(false); setForgotError(null); }}
+                    className="w-full text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Back to sign in
+                  </button>
+                </form>
+              </>
+            )
           ) : (
             <>
               <h2 className="font-display text-2xl font-bold text-foreground mb-1">Sign in</h2>
@@ -320,16 +342,9 @@ function ForcePasswordChangeForm({
       <p className="text-muted-foreground text-sm mb-1">
         {pendingReset.facilityName} — {pendingReset.email}
       </p>
-      <p className={`text-muted-foreground text-sm ${pendingReset.reason === "self_service" ? "mb-2" : "mb-6"}`}>
-        {pendingReset.reason === "self_service"
-          ? "You requested a password reset for this account. Choose a new password to continue."
-          : "This account was created with a temporary password. Choose a new one to continue."}
+      <p className="text-muted-foreground text-sm mb-6">
+        This account was created with a temporary password. Choose a new one to continue.
       </p>
-      {pendingReset.reason === "self_service" && (
-        <p className="text-[12px] font-mono text-muted-foreground bg-secondary rounded px-2 py-1.5 mb-6 break-all">
-          reset code (no email provider connected — shown here instead): {pendingReset.resetToken.slice(0, 24)}…
-        </p>
-      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>

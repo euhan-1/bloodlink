@@ -183,14 +183,14 @@ function StatusTypeTile({ bloodType, units, minimumUnits }: { bloodType: string;
   const flash = useFlashOnChange(status);
   return (
     <div
-      className={`rounded-lg border p-3 ${STATUS_STYLES[status].panel} ${flash ? "animate-value-flash-ring" : ""}`}
+      className={`rounded-xl border p-4 ${STATUS_STYLES[status].panel} ${flash ? "animate-value-flash-ring" : ""}`}
       style={{ "--flash-ring-color": STATUS_HEX[status] } as React.CSSProperties}
     >
       <div className="flex items-center justify-between mb-1.5">
         <BloodTypeBadge type={bloodType} size="md" />
         <StatusDot status={status} />
       </div>
-      <div className={`text-2xl font-display font-bold leading-tight tabular-nums ${STATUS_STYLES[status].text}`}>{units}</div>
+      <div className={`text-3xl font-display font-bold leading-tight tabular-nums ${STATUS_STYLES[status].text}`}>{units}</div>
       <div className={`text-[14px] font-semibold mt-0.5 ${STATUS_STYLES[status].text}`}>{label}</div>
     </div>
   );
@@ -204,6 +204,13 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
   const [expiryUnits, setExpiryUnits] = useState<InventoryUnit[]>([]);
   const [expiryLoading, setExpiryLoading] = useState(true);
   const [expiryError, setExpiryError] = useState<string | null>(null);
+
+  // Both lists default to a 3-item preview so a facility with many shortages/
+  // expiring units doesn't force its card (and, since these two cards sit in
+  // the same grid row, its sibling too) to grow arbitrarily tall.
+  const VISIBLE_ITEM_LIMIT = 3;
+  const [showAllActions, setShowAllActions] = useState(false);
+  const [showAllExpiry, setShowAllExpiry] = useState(false);
 
   // Named for what it actually is now — either a blood bank's forecast or a
   // hospital's threshold view, discriminated by "view" (see DashboardData).
@@ -365,7 +372,7 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
         </div>
       )}
       {!summaryLoading && !expiryLoading && !summaryError && !expiryError && (
-        <div className={`rounded-xl border p-6 ${STATUS_STYLES[heroStatus].panel}`}>
+        <div className={`rounded-xl border p-7 ${STATUS_STYLES[heroStatus].panel}`}>
           <div className="flex items-start justify-between gap-6 flex-wrap">
             <div className="flex-1 min-w-[260px]">
               <div className="flex items-center gap-2 mb-2">
@@ -383,12 +390,12 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
             <div className="flex items-center gap-6 sm:gap-8 flex-wrap">
               <div>
                 <div className="text-[12px] font-bold uppercase tracking-wide text-foreground mb-1">Total Units</div>
-                <div className="text-2xl font-display font-bold tabular-nums text-foreground">{totalUnits}</div>
+                <div className="text-3xl font-display font-bold tabular-nums text-foreground">{totalUnits}</div>
               </div>
               <div className="w-px h-10 bg-border hidden sm:block" />
               <div>
                 <div className="text-[12px] font-bold uppercase tracking-wide text-foreground mb-1">Expiring ≤7d</div>
-                <div className="text-2xl font-display font-bold tabular-nums text-foreground">{expiringRows.length}</div>
+                <div className="text-3xl font-display font-bold tabular-nums text-foreground">{expiringRows.length}</div>
               </div>
               <div className="w-px h-10 bg-border hidden sm:block" />
               <div
@@ -399,7 +406,7 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                 }
               >
                 <div className="text-[12px] font-bold uppercase tracking-wide text-foreground mb-1">Active Requests</div>
-                <div className="text-2xl font-display font-bold tabular-nums text-foreground">
+                <div className="text-3xl font-display font-bold tabular-nums text-foreground">
                   {activeRequestsCount === null ? "…" : activeRequestsCount}
                 </div>
               </div>
@@ -411,12 +418,12 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
       {/* Blood type breakdown */}
       {summaryLoading && (
         <div className="grid lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2 bg-white border border-border rounded-xl p-5">
+          <div className="lg:col-span-2 bg-white border border-border rounded-xl p-6">
             <Skeleton className="h-4 w-44 mb-2" />
             <Skeleton className="h-3.5 w-56 mb-5" />
             <Skeleton className="h-[220px] w-full" />
           </div>
-          <div className="bg-white border border-border rounded-xl p-5">
+          <div className="bg-white border border-border rounded-xl p-6">
             <Skeleton className="h-4 w-28 mb-4" />
             <div className="grid grid-cols-2 gap-2">
               {Array.from({ length: 8 }).map((_, i) => (
@@ -440,10 +447,10 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
       )}
       {!summaryLoading && !summaryError && (
         <div className="grid lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2 bg-white border border-border rounded-xl p-5 flex flex-col">
+          <div className="lg:col-span-2 bg-white border border-border rounded-xl p-6 flex flex-col">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="font-semibold text-foreground text-[17px]">Inventory by Blood Type</h3>
+                <h3 className="font-semibold text-foreground text-[19px]">Inventory by Blood Type</h3>
                 <p className="text-[15px] text-foreground mt-0.5">
                   Current units vs. minimum/maximum thresholds
                 </p>
@@ -515,8 +522,8 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
           </div>
 
           {/* Type grid */}
-          <div className="bg-white border border-border rounded-xl p-5">
-            <h3 className="font-semibold text-foreground text-[17px] mb-4">Status by Type</h3>
+          <div className="bg-white border border-border rounded-xl p-6">
+            <h3 className="font-semibold text-foreground text-[19px] mb-4">Status by Type</h3>
             <div className="grid grid-cols-2 gap-2">
               {summary.map((bt) => (
                 <StatusTypeTile key={bt.blood_type} bloodType={bt.blood_type} units={bt.units} minimumUnits={bt.minimum_units} />
@@ -531,9 +538,9 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
         {dashboardData?.view === "forecast" && (
           <>
             {/* 30-day forecast */}
-            <div className="lg:col-span-1 bg-white border border-border rounded-xl p-5">
+            <div className="lg:col-span-1 bg-white border border-border rounded-xl p-6">
               <div className="flex items-center justify-between mb-1">
-                <h3 className="font-semibold text-foreground text-[17px]">30-Day Shortage Forecast</h3>
+                <h3 className="font-semibold text-foreground text-[19px]">30-Day Shortage Forecast</h3>
                 {dashboardData.forecast_source === "synthetic_model_stand_in" && (
                   <span className="flex items-center gap-1 text-[13px] font-bold text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200">
                     <FlaskConical size={13} /> Synthetic Model
@@ -811,12 +818,12 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
             </div>
 
             {/* Shortage Alert */}
-            <div className="lg:col-span-1 bg-white border border-border rounded-xl p-5 flex flex-col">
+            <div className="lg:col-span-1 bg-white border border-border rounded-xl p-6 flex flex-col">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-7 h-7 rounded-lg bg-status-critical-tint flex items-center justify-center">
                   <Zap size={15} className="text-status-critical-text" />
                 </div>
-                <h3 className="font-semibold text-foreground text-[17px]">Predictive Shortage Alert</h3>
+                <h3 className="font-semibold text-foreground text-[19px]">Predictive Shortage Alert</h3>
               </div>
 
               <div className="flex-1 flex flex-col">
@@ -877,23 +884,33 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
         )}
 
         {dashboardData?.view === "threshold_status" && (
-          <div className="lg:col-span-2 bg-white border border-border rounded-xl p-5 flex flex-col">
-            <div className="flex items-center justify-between mb-4">
+          <div className="lg:col-span-2 self-start bg-white border border-border rounded-xl p-6 flex flex-col">
+            <div className="flex items-center justify-between mb-4 gap-3">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-status-critical-tint flex items-center justify-center">
                   <Zap size={15} className="text-status-critical-text" />
                 </div>
-                <h3 className="font-semibold text-foreground text-[17px]">Action Required</h3>
+                <h3 className="font-semibold text-foreground text-[19px]">Action Required</h3>
               </div>
-              {dashboardData.action_prompts.length > 0 ? (
-                <span className="flex items-center gap-1 text-[13px] font-bold text-status-critical-text bg-status-critical-tint px-2 py-0.5 rounded-full border border-status-critical-border">
-                  <AlertTriangle size={13} /> {dashboardData.action_prompts.length} below minimum
-                </span>
-              ) : (
-                <span className="flex items-center gap-1 text-[13px] font-bold text-status-safe-text bg-status-safe-tint px-2 py-0.5 rounded-full border border-status-safe-border">
-                  <CheckCircle size={13} /> Fully stocked
-                </span>
-              )}
+              <div className="flex items-center gap-2 shrink-0">
+                {dashboardData.action_prompts.length > 0 ? (
+                  <span className="flex items-center gap-1 text-[13px] font-bold text-status-critical-text bg-status-critical-tint px-2 py-0.5 rounded-full border border-status-critical-border">
+                    <AlertTriangle size={13} /> {dashboardData.action_prompts.length} below minimum
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[13px] font-bold text-status-safe-text bg-status-safe-tint px-2 py-0.5 rounded-full border border-status-safe-border">
+                    <CheckCircle size={13} /> Fully stocked
+                  </span>
+                )}
+                {dashboardData.action_prompts.length > VISIBLE_ITEM_LIMIT && (
+                  <button
+                    onClick={() => setShowAllActions((v) => !v)}
+                    className="text-[13px] font-semibold text-status-critical-text hover:underline"
+                  >
+                    {showAllActions ? "Show less" : `Show ${dashboardData.action_prompts.length - VISIBLE_ITEM_LIMIT} more`}
+                  </button>
+                )}
+              </div>
             </div>
             <p className="text-[15px] text-foreground mb-4">
               Current stock vs. minimum threshold, per type. Sending a request is never automatic — confirm each one yourself.
@@ -917,40 +934,55 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
                   </p>
                 </div>
               )}
-              {!forecastLoading && !forecastError && dashboardData.action_prompts.length > 0 && (
-                <div className="space-y-3">
-                  {dashboardData.action_prompts.map((prompt) => (
-                    <div key={prompt.blood_type} className="rounded-lg p-3 flex items-start gap-3 bg-status-critical-tint border border-status-critical-border">
-                      <div className="w-8 h-8 rounded-md font-bold text-[15px] flex items-center justify-center shrink-0 bg-status-critical text-white">
-                        {prompt.blood_type}
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-[15px] font-bold mb-0.5 text-status-critical-text">
-                          {prompt.units} of {prompt.minimum_units} units — short by {prompt.deficit}
+              {!forecastLoading && !forecastError && dashboardData.action_prompts.length > 0 && (() => {
+                const visible = showAllActions
+                  ? dashboardData.action_prompts
+                  : dashboardData.action_prompts.slice(0, VISIBLE_ITEM_LIMIT);
+                return (
+                  <div className="space-y-3">
+                    {visible.map((prompt) => (
+                      <div key={prompt.blood_type} className="rounded-lg p-3 flex items-start gap-3 bg-status-critical-tint border border-status-critical-border">
+                        <div className="w-8 h-8 rounded-md font-bold text-[15px] flex items-center justify-center shrink-0 bg-status-critical text-white">
+                          {prompt.blood_type}
                         </div>
-                        <div className="text-[14px] text-foreground leading-snug mb-2">{prompt.message}</div>
-                        <button
-                          onClick={() => onRequestBloodType(prompt.blood_type)}
-                          className="flex items-center gap-1.5 h-8 px-3 bg-primary text-white rounded-lg text-[13px] font-semibold hover:bg-primary-hover transition-colors"
-                        >
-                          <ArrowRight size={14} /> Request {prompt.blood_type} from nearby blood banks
-                        </button>
+                        <div className="flex-1">
+                          <div className="text-[15px] font-bold mb-0.5 text-status-critical-text">
+                            {prompt.units} of {prompt.minimum_units} units — short by {prompt.deficit}
+                          </div>
+                          <div className="text-[14px] text-foreground leading-snug mb-2">{prompt.message}</div>
+                          <button
+                            onClick={() => onRequestBloodType(prompt.blood_type)}
+                            className="flex items-center gap-1.5 h-8 px-3 bg-primary text-white rounded-lg text-[13px] font-semibold hover:bg-primary-hover transition-colors"
+                          >
+                            <ArrowRight size={14} /> Request {prompt.blood_type} from nearby blood banks
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
 
         {/* Expiry warnings */}
-        <div className="lg:col-span-1 bg-white border border-border rounded-xl p-5 flex flex-col">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
-              <Clock size={15} className="text-amber-600" />
+        <div className="lg:col-span-1 self-start bg-white border border-border rounded-xl p-6 flex flex-col">
+          <div className="flex items-center justify-between mb-4 gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+                <Clock size={15} className="text-amber-600" />
+              </div>
+              <h3 className="font-semibold text-foreground text-[19px]">Expiry Warnings</h3>
             </div>
-            <h3 className="font-semibold text-foreground text-[17px]">Expiry Warnings</h3>
+            {expiringRows.length > VISIBLE_ITEM_LIMIT && (
+              <button
+                onClick={() => setShowAllExpiry((v) => !v)}
+                className="text-[13px] font-semibold text-amber-700 hover:underline shrink-0"
+              >
+                {showAllExpiry ? "Show less" : `Show ${expiringRows.length - VISIBLE_ITEM_LIMIT} more`}
+              </button>
+            )}
           </div>
           <div className="flex-1 flex flex-col">
           {expiryLoading && (
@@ -970,13 +1002,16 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
               </p>
             </div>
           )}
-          {!expiryLoading && !expiryError && expiringRows.length > 0 && (
-            <div className="space-y-2">
-              {expiringRows.map((row) => (
-                <ExpiryWarningRow key={row.din} row={row} />
-              ))}
-            </div>
-          )}
+          {!expiryLoading && !expiryError && expiringRows.length > 0 && (() => {
+            const visible = showAllExpiry ? expiringRows : expiringRows.slice(0, VISIBLE_ITEM_LIMIT);
+            return (
+              <div className="space-y-2">
+                {visible.map((row) => (
+                  <ExpiryWarningRow key={row.din} row={row} />
+                ))}
+              </div>
+            );
+          })()}
           </div>
         </div>
       </div>
