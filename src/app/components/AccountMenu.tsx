@@ -3,6 +3,7 @@ import { Bell, Building2, CheckCircle, ChevronDown, KeyRound, LogOut, RefreshCw,
 import {
   completeFacilityProfile,
   getMyFacilityProfile, updatePassword as apiUpdatePassword,
+  requestPasswordReset,
   listNotifications, markNotificationRead, markAllNotificationsRead, type NotificationItem,
 } from "../lib/api";
 import { type SessionUser } from "../lib/session";
@@ -11,13 +12,29 @@ import { FacilityLocationFields } from "./FacilityLocationPicker";
 
 // ─── Account Menu (Change Password / Edit Facility Profile / Log out) ─────
 
-function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+function ChangePasswordModal({ email, onClose }: { email: string; onClose: () => void }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [forgotSending, setForgotSending] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+
+  async function handleForgotClick() {
+    setForgotSending(true);
+    try {
+      await requestPasswordReset(email);
+    } catch {
+      // Same non-committal outcome either way — the backend never reveals
+      // whether the send actually succeeded, so there's nothing more useful
+      // to show on failure than on success.
+    } finally {
+      setForgotSending(false);
+      setForgotSent(true);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,7 +77,21 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-[14px] font-semibold text-foreground block mb-1.5">Current password</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[14px] font-semibold text-foreground">Current password</label>
+              {forgotSent ? (
+                <span className="text-[12.5px] text-status-safe font-semibold">Check your email</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleForgotClick}
+                  disabled={forgotSending}
+                  className="text-[12.5px] font-semibold text-primary hover:underline disabled:opacity-60"
+                >
+                  {forgotSending ? "Sending…" : "Forgot your current password?"}
+                </button>
+              )}
+            </div>
             <input
               type="password"
               required
@@ -69,6 +100,11 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setCurrentPassword(e.target.value)}
               className="w-full h-10 px-3 text-sm border border-border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
             />
+            {forgotSent && (
+              <p className="text-[12.5px] text-muted-foreground mt-1.5">
+                If an account exists for {email}, a password reset link has been sent — open it to set a new password, then come back and sign in.
+              </p>
+            )}
           </div>
           <div>
             <label className="text-[14px] font-semibold text-foreground block mb-1.5">New password</label>
@@ -439,7 +475,9 @@ export function AccountMenu({ user, onLogout }: { user: SessionUser; onLogout: (
         </div>
       )}
 
-      {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
+      {showChangePassword && (
+        <ChangePasswordModal email={user.email} onClose={() => setShowChangePassword(false)} />
+      )}
       {showEditProfile && !isAdmin && (
         <EditFacilityProfileModal
           facilityName={user.facility_name}
