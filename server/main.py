@@ -352,45 +352,54 @@ def _apply_inventory_undo(conn, upload_id: int, facility_id: int) -> tuple[int, 
     return len(eligible_ids), blocked
 
 
-def _donor_blast_block_reason(conn, donor_id: int) -> Optional[str]:
-    """None if the donor has no blast involvement at all (safe to delete).
-    Otherwise a human-readable reason — checked in priority order so the
-    message matches what's actually stopping the deletion: a confirmed reply
-    on a still-active drive is the case staff asked about by name; anything
-    else with blast history (messaged, or replied on a now-completed drive)
-    still blocks deletion for a structural reason — blast_messages/blast_replies
-    both hold a NOT NULL reference to the donor, and deleting them alongside
-    the donor would quietly rewrite a "SIMULATED — not actually sent" record
-    that's supposed to be as trustworthy as the upload log itself."""
-    active_confirmed = conn.execute(
+def _donor_blast_block_reasons(conn, donor_ids: list[int]) -> dict[int, str]:
+    """Batched: one pair of set-based queries for a whole list of donor ids,
+    instead of the two queries per donor this used to run inside a Python
+    loop (see _preview_donor_undo / _apply_donor_undo). A donor id absent
+    from the returned dict has no blast involvement at all (safe to delete).
+    Otherwise the value is a human-readable reason, checked in priority
+    order so it matches what's actually stopping the deletion: a confirmed
+    reply on a still-active drive is the case staff asked about by name;
+    anything else with blast history (messaged, or replied on a now-completed
+    drive) still blocks deletion for a structural reason — blast_messages/
+    blast_replies both hold a NOT NULL reference to the donor, and deleting
+    them alongside the donor would quietly rewrite a "SIMULATED — not
+    actually sent" record that's supposed to be as trustworthy as the
+    upload log itself."""
+    if not donor_ids:
+        return {}
+
+    reasons: dict[int, str] = {}
+
+    active_confirmed_ids = conn.execute(
         text(
             """
-            SELECT 1 FROM blast_replies br
+            SELECT DISTINCT br.donor_id FROM blast_replies br
             JOIN blasts b ON b.id = br.blast_id
-            WHERE br.donor_id = :donor_id AND br.reply = 'yes' AND b.status = 'active'
-            LIMIT 1
+            WHERE br.donor_id = ANY(:donor_ids) AND br.reply = 'yes' AND b.status = 'active'
             """
         ),
-        {"donor_id": donor_id},
-    ).first()
-    if active_confirmed is not None:
-        return "confirmed on an active donor drive"
+        {"donor_ids": donor_ids},
+    ).scalars().all()
+    for donor_id in active_confirmed_ids:
+        reasons[donor_id] = "confirmed on an active donor drive"
 
-    has_history = conn.execute(
-        text(
-            """
-            SELECT 1 FROM blast_messages WHERE donor_id = :donor_id
-            UNION ALL
-            SELECT 1 FROM blast_replies WHERE donor_id = :donor_id
-            LIMIT 1
-            """
-        ),
-        {"donor_id": donor_id},
-    ).first()
-    if has_history is not None:
-        return "has message history from a donor drive"
+    remaining_ids = [d for d in donor_ids if d not in reasons]
+    if remaining_ids:
+        has_history_ids = conn.execute(
+            text(
+                """
+                SELECT donor_id FROM blast_messages WHERE donor_id = ANY(:donor_ids)
+                UNION
+                SELECT donor_id FROM blast_replies WHERE donor_id = ANY(:donor_ids)
+                """
+            ),
+            {"donor_ids": remaining_ids},
+        ).scalars().all()
+        for donor_id in has_history_ids:
+            reasons[donor_id] = "has message history from a donor drive"
 
-    return None
+    return reasons
 
 
 def _preview_donor_undo(conn, upload_id: int, facility_id: int) -> tuple[list[dict], list[dict]]:
@@ -404,9 +413,10 @@ def _preview_donor_undo(conn, upload_id: int, facility_id: int) -> tuple[list[di
         ),
         {"upload_id": upload_id, "facility_id": facility_id},
     ).mappings().all()
+    reasons = _donor_blast_block_reasons(conn, [r["id"] for r in rows])
     eligible, blocked = [], []
     for r in rows:
-        reason = _donor_blast_block_reason(conn, r["id"])
+        reason = reasons.get(r["id"])
         if reason is None:
             eligible.append({"name": r["name"], "phone": r["phone"], "blood_type": r["blood_type"]})
         else:
@@ -424,9 +434,10 @@ def _apply_donor_undo(conn, upload_id: int, facility_id: int) -> tuple[int, list
         ),
         {"upload_id": upload_id, "facility_id": facility_id},
     ).mappings().all()
+    reasons = _donor_blast_block_reasons(conn, [r["id"] for r in rows])
     eligible_ids, blocked = [], []
     for r in rows:
-        reason = _donor_blast_block_reason(conn, r["id"])
+        reason = reasons.get(r["id"])
         if reason is None:
             eligible_ids.append(r["id"])
         else:
@@ -443,25 +454,18 @@ UPLOAD_UNDO_HANDLERS = {
 }
 
 
-def _check_expiry_notifications(conn, facility_id: int) -> None:
-    """Runs as a side effect of GET /inventory. Only ever notifies about a
-    unit the FIRST time it reaches a given tier — last_notified_expiry_status
-    is what makes this idempotent across repeated loads instead of spamming
-    a notification every time the screen is opened while a unit sits at the
-    same status."""
+def _check_expiry_notifications(conn, facility_id: int, rows: list) -> None:
+    """Runs as a side effect of GET /inventory, reusing that endpoint's own
+    query result instead of re-scanning blood_units a second time (rows may
+    include already-expired units, since the caller doesn't filter those out
+    — skipped below instead). Only ever notifies about a unit the FIRST time
+    it reaches a given tier — last_notified_expiry_status is what makes this
+    idempotent across repeated loads instead of spamming a notification every
+    time the screen is opened while a unit sits at the same status."""
     today = date.today()
-    rows = conn.execute(
-        text(
-            """
-            SELECT id, din, blood_type, expires_date, last_notified_expiry_status
-            FROM blood_units
-            WHERE facility_id = :facility_id AND expires_date >= CURRENT_DATE
-            """
-        ),
-        {"facility_id": facility_id},
-    ).mappings().all()
-
     for row in rows:
+        if row["expires_date"] < today:
+            continue
         days_left = (row["expires_date"] - today).days
         if days_left <= NOTIFY_EXPIRY_CRITICAL_DAYS:
             status = "critical"
@@ -975,8 +979,8 @@ def get_inventory(facility_id: int = Depends(get_acting_facility_id)):
         rows = conn.execute(
             text(
                 """
-                SELECT din, blood_type, component, location, volume_ml,
-                       collected_date, expires_date
+                SELECT id, din, blood_type, component, location, volume_ml,
+                       collected_date, expires_date, last_notified_expiry_status
                 FROM blood_units
                 WHERE facility_id = :facility_id
                 ORDER BY expires_date ASC
@@ -985,9 +989,17 @@ def get_inventory(facility_id: int = Depends(get_acting_facility_id)):
             {"facility_id": facility_id},
         ).mappings().all()
         # Side effect: notifies once per unit the first time it crosses into
-        # near-expiry/critical — see _check_expiry_notifications.
-        _check_expiry_notifications(conn, facility_id)
-    return [dict(row) for row in rows]
+        # near-expiry/critical — reuses the rows just fetched above instead
+        # of re-querying blood_units a second time (see _check_expiry_notifications).
+        _check_expiry_notifications(conn, facility_id, rows)
+    return [
+        {
+            "din": r["din"], "blood_type": r["blood_type"], "component": r["component"],
+            "location": r["location"], "volume_ml": r["volume_ml"],
+            "collected_date": r["collected_date"], "expires_date": r["expires_date"],
+        }
+        for r in rows
+    ]
 
 
 @app.delete("/inventory/{din}")
@@ -2251,11 +2263,10 @@ def confirm_release(request_id: int, facility_id: int = Depends(get_acting_facil
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
-        for unit in selected:
-            conn.execute(
-                text("UPDATE blood_units SET reserved_for_request_id = :rid WHERE id = :uid"),
-                {"rid": request_id, "uid": unit["id"]},
-            )
+        conn.execute(
+            text("UPDATE blood_units SET reserved_for_request_id = :rid WHERE id = ANY(:uids)"),
+            {"rid": request_id, "uids": [unit["id"] for unit in selected]},
+        )
         conn.execute(text("UPDATE requests SET supplier_confirmed_at = now() WHERE id = :id"), {"id": request_id})
 
         supplier = conn.execute(
@@ -3130,8 +3141,16 @@ def create_blast(body: CreateBlastBody, facility_id: int = Depends(get_acting_fa
 
         message_text = _build_blast_message(body.blood_type, facility["name"], body.target_count, body.time_limit_hours)
 
-        messages = []
-        for donor in matching_donors:
+        messages = [
+            {
+                "donor_id": donor["id"],
+                "donor_name": donor["name"],
+                "phone": donor["phone"],
+                "message_text": message_text,
+            }
+            for donor in matching_donors
+        ]
+        if messages:
             conn.execute(
                 text(
                     """
@@ -3139,14 +3158,8 @@ def create_blast(body: CreateBlastBody, facility_id: int = Depends(get_acting_fa
                     VALUES (:blast_id, :donor_id, :message_text)
                     """
                 ),
-                {"blast_id": blast_row["id"], "donor_id": donor["id"], "message_text": message_text},
+                [{"blast_id": blast_row["id"], "donor_id": m["donor_id"], "message_text": message_text} for m in messages],
             )
-            messages.append({
-                "donor_id": donor["id"],
-                "donor_name": donor["name"],
-                "phone": donor["phone"],
-                "message_text": message_text,
-            })
 
     return {
         "blast": dict(blast_row),
@@ -3302,13 +3315,13 @@ def _complete_blast_if_needed(conn, blast_id: int) -> bool:
         {"id": blast_id},
     ).mappings().all()
 
-    for row in unresponded:
+    if unresponded:
         conn.execute(
             text(
                 "INSERT INTO blast_messages (blast_id, donor_id, message_text) "
                 "VALUES (:blast_id, :donor_id, :message_text)"
             ),
-            {"blast_id": blast_id, "donor_id": row["donor_id"], "message_text": message_text},
+            [{"blast_id": blast_id, "donor_id": row["donor_id"], "message_text": message_text} for row in unresponded],
         )
 
     return True
