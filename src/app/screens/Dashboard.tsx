@@ -372,7 +372,7 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
         </div>
       )}
       {!summaryLoading && !expiryLoading && !summaryError && !expiryError && (
-        <div className={`rounded-xl border p-7 animate-card-rise-in ${STATUS_STYLES[heroStatus].panel}`} style={{ animationDelay: "200ms" }}>
+        <div className={`rounded-xl border p-7 animate-card-rise-in ${STATUS_STYLES[heroStatus].panel}`} style={{ animationDelay: "250ms" }}>
           <div className="flex items-start justify-between gap-6 flex-wrap">
             <div className="flex-1 min-w-[260px]">
               <div className="flex items-center gap-2 mb-2">
@@ -446,7 +446,7 @@ export function DashboardScreen({ onRequestBloodType }: { onRequestBloodType: (b
         </div>
       )}
       {!summaryLoading && !summaryError && (
-        <div className="grid lg:grid-cols-3 gap-4 animate-card-rise-in" style={{ animationDelay: "550ms" }}>
+        <div className="grid lg:grid-cols-3 gap-4 animate-card-rise-in" style={{ animationDelay: "750ms" }}>
           <div className="lg:col-span-2 bg-white border border-border rounded-xl p-6 flex flex-col">
             <div className="flex items-center justify-between mb-5">
               <div>

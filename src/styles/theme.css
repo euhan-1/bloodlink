@@ -479,14 +479,14 @@
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-header-drop-in {
-  animation: header-drop-in 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: header-drop-in 1200ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 @keyframes content-rise-in {
   from { opacity: 0; transform: translateY(22px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-content-rise-in {
-  animation: content-rise-in 1000ms cubic-bezier(0.16, 1, 0.3, 1) 300ms both;
+  animation: content-rise-in 1300ms cubic-bezier(0.16, 1, 0.3, 1) 400ms both;
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-header-drop-in, .animate-content-rise-in {
@@ -502,7 +502,7 @@
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-card-rise-in {
-  animation: card-rise-in 950ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: card-rise-in 1250ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-card-rise-in {
