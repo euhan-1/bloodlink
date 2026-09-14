@@ -5,6 +5,7 @@ import {
   type NotificationItem,
 } from "./lib/api";
 import { getCurrentUser, type SessionUser } from "./lib/session";
+import { withViewTransition } from "./lib/motion";
 import { isDevModeEnabled, getDevFacilityId, setDevFacilityId } from "./lib/devMode";
 import { BloodDropLogo } from "./components/BloodTypeBadge";
 import { NotificationBell, AccountMenu } from "./components/AccountMenu";
@@ -46,7 +47,7 @@ function TopNav({
   ];
 
   return (
-    <header className="sticky top-0 z-[1100] bg-white border-b border-border">
+    <header className="sticky top-0 z-[1100] bg-white border-b border-border animate-header-drop-in">
       <div className="max-w-screen-2xl mx-auto px-6 flex items-center gap-8 h-14">
         {/* Logo */}
         <div className="flex items-center gap-2.5 shrink-0">
@@ -192,9 +193,11 @@ export default function App() {
   }, [currentUser?.facility_type]);
 
   function handleLogout() {
-    apiLogout();
-    setCurrentUser(null);
-    setScreen("dashboard");
+    withViewTransition(() => {
+      apiLogout();
+      setCurrentUser(null);
+      setScreen("dashboard");
+    });
   }
 
   // Reachable regardless of session state — a person clicking the emailed
@@ -204,7 +207,7 @@ export default function App() {
   // the logged-out case.
   if (window.location.pathname === "/reset-password") {
     return (
-      <div style={{ fontFamily: "var(--font-body)" }}>
+      <div style={{ fontFamily: "var(--font-body)" }} className="animate-page-enter">
         <ResetPasswordScreen />
       </div>
     );
@@ -212,15 +215,15 @@ export default function App() {
 
   if (!currentUser) {
     return (
-      <div style={{ fontFamily: "var(--font-body)" }}>
-        <LoginScreen onLogin={(user) => { setCurrentUser(user); setScreen("dashboard"); }} />
+      <div style={{ fontFamily: "var(--font-body)" }} className="animate-page-enter">
+        <LoginScreen onLogin={(user) => withViewTransition(() => { setCurrentUser(user); setScreen("dashboard"); })} />
       </div>
     );
   }
 
   if (currentUser.role === "admin") {
     return (
-      <div style={{ fontFamily: "var(--font-body)" }}>
+      <div style={{ fontFamily: "var(--font-body)" }} className="animate-page-enter">
         <AdminDashboardScreen user={currentUser} onLogout={handleLogout} />
       </div>
     );
@@ -228,8 +231,8 @@ export default function App() {
 
   if (!currentUser.profile_completed) {
     return (
-      <div style={{ fontFamily: "var(--font-body)" }}>
-        <CompleteProfileScreen user={currentUser} onComplete={() => setCurrentUser(getCurrentUser())} />
+      <div style={{ fontFamily: "var(--font-body)" }} className="animate-page-enter">
+        <CompleteProfileScreen user={currentUser} onComplete={() => withViewTransition(() => setCurrentUser(getCurrentUser()))} />
       </div>
     );
   }
@@ -238,7 +241,7 @@ export default function App() {
     <div style={{ fontFamily: "var(--font-body)" }} className="min-h-screen bg-background">
       <TopNav screen={screen} setScreen={setScreen} onLogout={handleLogout} user={currentUser} onNotificationNavigate={handleNotificationNavigate} />
       {isDevModeEnabled() && <DevFacilityBanner />}
-      <main>
+      <main className="animate-content-rise-in">
         {screen === "dashboard" && (
           <DashboardScreen
             onRequestBloodType={(bloodType) => {

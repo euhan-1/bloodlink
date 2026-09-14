@@ -1,4 +1,22 @@
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+
+// Wraps a state update that swaps the whole screen (login <-> dashboard) in
+// the native View Transitions API, so the hand-off is an actual cross-screen
+// animation (see ::view-transition-old/new(root) in theme.css) instead of an
+// instant unmount/mount. flushSync forces the DOM update to happen
+// synchronously inside the callback, which the API requires in order to
+// capture an "after" snapshot on the very next frame. Falls back to a plain
+// update wherever the API isn't available (Safari, older browsers) — the
+// screen still swaps, just without the transition.
+export function withViewTransition(update: () => void): void {
+  const doc = document as Document & { startViewTransition?: (callback: () => void) => void };
+  if (typeof doc.startViewTransition === "function") {
+    doc.startViewTransition(() => flushSync(update));
+  } else {
+    update();
+  }
+}
 
 // Briefly returns true when `value` changes after the component's first
 // render — used to trigger a short highlight/fade on a piece of UI whose

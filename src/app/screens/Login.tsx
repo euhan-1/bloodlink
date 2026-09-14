@@ -88,7 +88,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
   return (
     <div className="min-h-screen bg-[#F8F9FB] flex">
       {/* Left panel */}
-      <div className="hidden lg:flex flex-col justify-between w-[480px] bg-primary text-white p-12">
+      <div className="hidden lg:flex flex-col justify-between w-[480px] bg-primary text-white p-12 animate-panel-slide-left">
         <div>
           <div className="flex items-center gap-3 mb-16">
             <BloodDropLogo size={36} />
@@ -108,7 +108,11 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
             { icon: <Zap size={16} />, text: "AI-assisted forecasting and shortage alerts" },
             { icon: <RefreshCw size={16} />, text: "Automated donor outreach via SMS" },
           ].map((item, i) => (
-            <div key={i} className="flex items-center gap-3 text-white/80 text-sm">
+            <div
+              key={i}
+              className="flex items-center gap-3 text-white/80 text-sm animate-bullet-rise-in"
+              style={{ animationDelay: `${360 + i * 90}ms` }}
+            >
               <div className="w-7 h-7 rounded bg-white/15 flex items-center justify-center shrink-0">
                 {item.icon}
               </div>
@@ -120,7 +124,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user: SessionUser) => void 
 
       {/* Right panel */}
       <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-[400px]">
+        <div className="w-full max-w-[400px] animate-panel-slide-right">
           <div className="flex items-center gap-2 mb-2 lg:hidden">
             <BloodDropLogo size={28} />
             <span className="text-lg font-bold">Blood<span className="text-primary">Link</span></span>
